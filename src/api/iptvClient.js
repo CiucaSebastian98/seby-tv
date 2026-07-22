@@ -1,29 +1,29 @@
 import { endpoints } from './endpoints.js'
 
-// Cache în memorie per sesiune (fișierele iptv-org sunt mari și rar se schimbă).
+// Cache în memorie per sesiune.
 const cache = new Map()
 
-async function getJSON(url) {
+async function get(url, parse) {
   if (cache.has(url)) return cache.get(url)
   const res = await fetch(url)
-  if (!res.ok) {
-    throw new Error(`Eroare la ${url}: ${res.status} ${res.statusText}`)
-  }
-  const data = await res.json()
+  if (!res.ok) throw new Error(`Eroare la ${url}: ${res.status} ${res.statusText}`)
+  const data = await (parse === 'json' ? res.json() : res.text())
   cache.set(url, data)
   return data
 }
 
 /**
- * Descarcă în paralel toate datele necesare din iptv-org.
- * @returns {Promise<{channels, streams, categories, countries}>}
+ * Descarcă playlist-ul M3U + countries.json (pentru steaguri/nume).
+ * countries.json e best-effort: dacă pică, continuăm cu coduri de țară.
+ * @returns {Promise<{playlistText: string, countries: Array}>}
  */
 export async function fetchIptvData() {
-  const [channels, streams, categories, countries] = await Promise.all([
-    getJSON(endpoints.channels),
-    getJSON(endpoints.streams),
-    getJSON(endpoints.categories),
-    getJSON(endpoints.countries),
+  const playlistPromise = get(endpoints.playlist, 'text')
+  const countriesPromise = get(endpoints.countries, 'json').catch(() => [])
+
+  const [playlistText, countries] = await Promise.all([
+    playlistPromise,
+    countriesPromise,
   ])
-  return { channels, streams, categories, countries }
+  return { playlistText, countries }
 }

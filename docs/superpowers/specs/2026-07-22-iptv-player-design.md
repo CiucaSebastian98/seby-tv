@@ -20,14 +20,19 @@ căutare, filtrare (țară/categorie), favorite persistente și EPG (now/next).
 
 ## Sursa de date (iptv-org)
 
-Nu există API dinamic; sunt fișiere JSON statice servite cu CORS:
-- `channels.json` — catalog canale (`id`, `name`, `country`, `categories[]`, `logo`)
-- `streams.json` — stream-uri (`channel`, `url`, `quality`, `referrer`, `user_agent`)
-- `categories.json`, `countries.json` (cod → nume + flag emoji)
+Sursa principală e **playlist-ul M3U** `https://iptv-org.github.io/iptv/index.m3u`
+(~13.5k canale), care conține deja canal + URL + logo + categorie într-o singură
+intrare `#EXTINF` — deci nu mai e nevoie de fuzionare channels+streams.
 
-`channelService` fuzionează channels + streams după `channel id` și păstrează doar
-canalele care au cel puțin un stream (deci redabile). EPG-ul vine separat, din
-XMLTV (repo `iptv-org/epg` sau o sursă publică).
+Format intrare: `#EXTINF:-1 tvg-id="Name.cc@FEED" tvg-logo="..." group-title="Categorie",Nume`
+apoi URL-ul pe linia următoare (posibil precedat de `#EXTVLCOPT`, ignorat).
+- **Țara** se extrage din `tvg-id` (`.cc@` → cod ISO)
+- **Categoria** = `group-title` (text lizibil)
+
+`m3uParser` parsează playlist-ul; `channelService.buildCatalog` îl transformă în
+catalog. Adițional se ia `countries.json` (fișier mic, best-effort) doar pentru
+mapare cod țară → nume + steag. EPG-ul vine separat, din XMLTV
+(repo `iptv-org/epg` sau o sursă publică).
 
 ## Structură foldere
 
@@ -35,7 +40,7 @@ XMLTV (repo `iptv-org/epg` sau o sursă publică).
 src/
 ├─ main.jsx, App.jsx, index.css, constants.js
 ├─ api/       → endpoints.js, iptvClient.js
-├─ services/  → channelService.js, epgService.js
+├─ services/  → m3uParser.js, channelService.js, epgService.js
 ├─ context/   → actions.js, appReducer.js, AppContext.jsx
 ├─ hooks/     → useChannels, useFavorites, useHlsPlayer, useEpg
 ├─ components/

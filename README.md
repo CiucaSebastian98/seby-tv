@@ -5,7 +5,7 @@ Player IPTV web personal (React + Vite) care consumă datele publice
 
 ## Funcționalități
 
-- 📺 Catalog de canale din `iptv-org` (channels + streams fuzionate)
+- 📺 Catalog de ~13.5k canale din playlist-ul M3U `iptv-org/index.m3u`
 - 🔎 Căutare după nume + filtrare pe țară / categorie
 - ⭐ Favorite persistente (localStorage)
 - ▶️ Player HLS (`hls.js`) cu fallback nativ pe Safari + recovery pe erori
@@ -36,8 +36,8 @@ Fără această variabilă aplicația funcționează normal, doar fără program
 
 ```
 src/
-├─ api/        # fetch + cache pentru endpoint-urile iptv-org
-├─ services/   # channelService (merge+filtre), epgService (parse XMLTV)
+├─ api/        # fetch + cache (playlist M3U + countries.json)
+├─ services/   # m3uParser, channelService (catalog+filtre), epgService (XMLTV)
 ├─ context/    # store global: Context API + useReducer
 ├─ hooks/      # useChannels, useFavorites, useHlsPlayer, useEpg
 ├─ components/ # player/, channels/, ui/

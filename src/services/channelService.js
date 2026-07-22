@@ -1,97 +1,83 @@
+import { parseM3U, countryFromTvgId } from './m3uParser.js'
+
 /**
- * Fuzionează channels + streams într-un catalog redabil.
- * Păstrează DOAR canalele care au cel puțin un stream (deci pot fi redate),
- * și îmbogățește fiecare canal cu numele categoriilor și țării + flag.
+ * Construiește catalogul din playlist-ul M3U (iptv-org index.m3u).
+ * Fiecare intrare M3U are deja canal + URL + logo + categorie, deci nu mai e
+ * nevoie de fuzionare channels+streams. `countries.json` (opțional) e folosit
+ * doar pentru a afișa nume de țară + steag în loc de coduri seci.
+ *
+ * Produce EXACT aceeași formă de catalog ca înainte, deci restul aplicației
+ * (context, hooks, componente) rămâne neschimbat.
  */
 
-/** @returns {Map<string, {name, flag}>} indexat pe cod țară (ex: "RO") */
-function indexCountries(countries) {
+/** @returns {Map<string, {name, flag}>} indexat pe cod țară (ex: "ro") */
+function indexCountries(countries = []) {
   const map = new Map()
   for (const c of countries) {
-    map.set(c.code, { name: c.name, flag: c.flag || '' })
-  }
-  return map
-}
-
-/** @returns {Map<string, string>} id categorie -> nume */
-function indexCategories(categories) {
-  const map = new Map()
-  for (const cat of categories) map.set(cat.id, cat.name)
-  return map
-}
-
-/** @returns {Map<string, string[]>} channelId -> listă URL-uri stream */
-function indexStreams(streams) {
-  const map = new Map()
-  for (const s of streams) {
-    const id = s.channel
-    if (!id || !s.url) continue
-    if (!map.has(id)) map.set(id, [])
-    map.get(id).push(s.url)
+    map.set(String(c.code).toLowerCase(), { name: c.name, flag: c.flag || '' })
   }
   return map
 }
 
 /**
+ * @param {{playlistText: string, countries?: Array}} data
  * @returns {{channels: Array, countries: Array, categories: Array}}
- *   channels — catalog fuzionat, sortat alfabetic
- *   countries/categories — doar cele care apar efectiv în catalog (pt. filtre)
  */
-export function buildCatalog({ channels, streams, categories, countries }) {
+export function buildCatalog({ playlistText, countries = [] }) {
   const countryIndex = indexCountries(countries)
-  const categoryIndex = indexCategories(categories)
-  const streamIndex = indexStreams(streams)
+  const entries = parseM3U(playlistText)
 
   const usedCountries = new Set()
   const usedCategories = new Set()
+  const seenIds = new Set()
 
   const catalog = []
-  for (const ch of channels) {
-    const urls = streamIndex.get(ch.id)
-    if (!urls || urls.length === 0) continue // fără stream => nu-l putem reda
-    if (ch.closed || ch.replaced_by) continue // canal închis/migrat
+  entries.forEach((e, i) => {
+    if (!e.url) return
 
-    const country = countryIndex.get(ch.country)
-    const categoryNames = (ch.categories || []).map(
-      (id) => categoryIndex.get(id) || id,
-    )
+    const cc = countryFromTvgId(e.tvgId)
+    const country = cc ? countryIndex.get(cc) : null
+    const group = e.group || 'Necategorizat'
 
-    usedCountries.add(ch.country)
-    ;(ch.categories || []).forEach((id) => usedCategories.add(id))
+    // Id unic: tvg-id include deja @SD/@HD, dar ne asigurăm contra coliziunilor.
+    let id = e.tvgId || `ch-${i}`
+    if (seenIds.has(id)) id = `${id}#${i}`
+    seenIds.add(id)
+
+    if (cc) usedCountries.add(cc)
+    usedCategories.add(group)
 
     catalog.push({
-      id: ch.id,
-      name: ch.name,
-      logo: ch.logo || '',
-      countryCode: ch.country,
-      countryName: country?.name || ch.country,
+      id,
+      name: e.name || e.tvgId || 'Fără nume',
+      logo: e.logo || '',
+      countryCode: cc,
+      countryName: country?.name || (cc ? cc.toUpperCase() : 'Necunoscut'),
       flag: country?.flag || '',
-      categoryIds: ch.categories || [],
-      categoryNames,
-      isNsfw: !!ch.is_nsfw,
-      streams: urls,
-      url: urls[0], // stream implicit
+      categoryIds: [group], // în M3U categoria e un singur group-title
+      categoryNames: [group],
+      streams: [e.url],
+      url: e.url,
     })
-  }
+  })
 
   catalog.sort((a, b) => a.name.localeCompare(b.name))
 
   const filterCountries = countries
-    .filter((c) => usedCountries.has(c.code))
-    .map((c) => ({ code: c.code, name: c.name, flag: c.flag || '' }))
+    .filter((c) => usedCountries.has(String(c.code).toLowerCase()))
+    .map((c) => ({ code: String(c.code).toLowerCase(), name: c.name, flag: c.flag || '' }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const filterCategories = categories
-    .filter((c) => usedCategories.has(c.id))
-    .map((c) => ({ id: c.id, name: c.name }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  const filterCategories = [...usedCategories]
+    .sort((a, b) => a.localeCompare(b))
+    .map((g) => ({ id: g, name: g }))
 
   return { channels: catalog, countries: filterCountries, categories: filterCategories }
 }
 
 /**
  * Selector: aplică filtrele (search/country/category) peste catalog.
- * Pur, memoizabil — nu ține state.
+ * Pur, memoizabil — nu ține state. (neschimbat față de varianta JSON)
  */
 export function selectVisibleChannels(channels, filters) {
   const q = filters.search.trim().toLowerCase()

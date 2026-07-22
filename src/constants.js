@@ -1,4 +1,7 @@
-// Endpoint-urile publice iptv-org (fișiere JSON statice, servite cu CORS).
+// Playlist-ul M3U cu toate canalele (sursă principală de date).
+export const IPTV_PLAYLIST = 'https://iptv-org.github.io/iptv/index.m3u'
+
+// API-ul JSON iptv-org — folosit doar pentru countries.json (nume + steag).
 export const IPTV_API = 'https://iptv-org.github.io/api'
 
 // Sursa EPG (XMLTV) — configurabilă din .env. Goală => fără program TV.

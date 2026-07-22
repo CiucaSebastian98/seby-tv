@@ -1,8 +1,8 @@
-import { IPTV_API } from '../constants.js'
+import { IPTV_API, IPTV_PLAYLIST } from '../constants.js'
 
 export const endpoints = {
-  channels: `${IPTV_API}/channels.json`,
-  streams: `${IPTV_API}/streams.json`,
-  categories: `${IPTV_API}/categories.json`,
+  // Playlist-ul canonic „toate canalele" (canal + URL + logo + categorie).
+  playlist: IPTV_PLAYLIST,
+  // Doar pentru mapare cod țară -> nume + steag (fișier mic, opțional).
   countries: `${IPTV_API}/countries.json`,
 }
