@@ -19,7 +19,8 @@ function keyFor(url) {
 function resolveStreamUrl(rawUrl) {
   const isHls = /\.m3u8(\?|$)/i.test(rawUrl)
   if (isHls || !STREAM_PROXY) return rawUrl
-  return `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8`
+  // Adăugăm token-ul de securitate setat pe server
+  return `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8?token=parola123`
 }
 
 /**

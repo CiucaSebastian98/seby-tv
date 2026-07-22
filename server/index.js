@@ -254,8 +254,22 @@ app.disable('x-powered-by')
 
 // ── Middleware global ──
 app.use((req, res, next) => {
-  // CORS
-  res.set('Access-Control-Allow-Origin', '*')
+  // Securitate simplă bazată pe Token în URL
+  // Doar rutele de /stream și /playlist au nevoie de protecție (nu și /health)
+  if (req.path.startsWith('/stream') || req.path.startsWith('/playlist')) {
+    const token = req.query.token
+    if (token !== 'parola123') {
+      return res.status(401).send('Acces interzis: token invalid')
+    }
+  }
+
+  // CORS - Restricționăm să poată fi accesat doar de pe domeniul tău Vercel și de pe localhost
+  const allowedOrigins = ['http://localhost:5175', 'https://seby-tv.vercel.app']
+  const origin = req.headers.origin
+  if (allowedOrigins.includes(origin)) {
+    res.set('Access-Control-Allow-Origin', origin)
+  }
+  
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.set('Access-Control-Allow-Headers', 'Content-Type')
   // Securitate

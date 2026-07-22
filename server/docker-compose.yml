@@ -24,11 +24,10 @@ services:
     environment:
       # Token-ul tău de pe contul ngrok
       - NGROK_AUTHTOKEN=3Gs2gM2xKel5D6o3X2bY0Z29BN2_83m6NnudEeVTW7GqddCqu
-    # Comanda care expune proxy:8080 și pune parolă + domeniu static
+    # Comanda care expune proxy:8080 pe domeniul tău
     command:
       - "http"
       - "proxy:8080"
-      - "--basic-auth=seby:parola123"
       - "--url=charging-impart-musket.ngrok-free.dev"
     depends_on:
       - proxy
