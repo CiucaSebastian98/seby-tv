@@ -1,5 +1,5 @@
-// Playlist-ul M3U cu toate canalele (sursă principală de date).
-export const IPTV_PLAYLIST = 'https://iptv-org.github.io/iptv/index.m3u'
+// Playlist-ul M3U (sursă principală de date). Doar canale în limba română.
+export const IPTV_PLAYLIST = 'https://iptv-org.github.io/iptv/languages/ron.m3u'
 
 // API-ul JSON iptv-org — folosit doar pentru countries.json (nume + steag).
 export const IPTV_API = 'https://iptv-org.github.io/api'

@@ -20,9 +20,10 @@ căutare, filtrare (țară/categorie), favorite persistente și EPG (now/next).
 
 ## Sursa de date (iptv-org)
 
-Sursa principală e **playlist-ul M3U** `https://iptv-org.github.io/iptv/index.m3u`
-(~13.5k canale), care conține deja canal + URL + logo + categorie într-o singură
-intrare `#EXTINF` — deci nu mai e nevoie de fuzionare channels+streams.
+Sursa principală e **playlist-ul M3U** `https://iptv-org.github.io/iptv/languages/ron.m3u`
+(canale în limba română, ~145), care conține deja canal + URL + logo + categorie
+într-o singură intrare `#EXTINF` — deci nu mai e nevoie de fuzionare channels+streams.
+(Se poate schimba cu orice alt playlist iptv-org din `IPTV_PLAYLIST`.)
 
 Format intrare: `#EXTINF:-1 tvg-id="Name.cc@FEED" tvg-logo="..." group-title="Categorie",Nume`
 apoi URL-ul pe linia următoare (posibil precedat de `#EXTVLCOPT`, ignorat).

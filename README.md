@@ -5,7 +5,7 @@ Player IPTV web personal (React + Vite) care consumă datele publice
 
 ## Funcționalități
 
-- 📺 Catalog de ~13.5k canale din playlist-ul M3U `iptv-org/index.m3u`
+- 📺 Canale românești din playlist-ul M3U `iptv-org/languages/ron.m3u` (~145 canale)
 - 🔎 Căutare după nume + filtrare pe țară / categorie
 - ⭐ Favorite persistente (localStorage)
 - ▶️ Player HLS (`hls.js`) cu fallback nativ pe Safari + recovery pe erori

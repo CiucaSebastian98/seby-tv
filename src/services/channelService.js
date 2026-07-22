@@ -37,7 +37,13 @@ export function buildCatalog({ playlistText, countries = [] }) {
 
     const cc = countryFromTvgId(e.tvgId)
     const country = cc ? countryIndex.get(cc) : null
-    const group = e.group || 'Necategorizat'
+
+    // group-title poate conține mai multe categorii separate prin ";".
+    const groups = (e.group || '')
+      .split(';')
+      .map((g) => g.trim())
+      .filter(Boolean)
+    const categories = groups.length ? groups : ['Necategorizat']
 
     // Id unic: tvg-id include deja @SD/@HD, dar ne asigurăm contra coliziunilor.
     let id = e.tvgId || `ch-${i}`
@@ -45,7 +51,7 @@ export function buildCatalog({ playlistText, countries = [] }) {
     seenIds.add(id)
 
     if (cc) usedCountries.add(cc)
-    usedCategories.add(group)
+    categories.forEach((g) => usedCategories.add(g))
 
     catalog.push({
       id,
@@ -54,8 +60,8 @@ export function buildCatalog({ playlistText, countries = [] }) {
       countryCode: cc,
       countryName: country?.name || (cc ? cc.toUpperCase() : 'Necunoscut'),
       flag: country?.flag || '',
-      categoryIds: [group], // în M3U categoria e un singur group-title
-      categoryNames: [group],
+      categoryIds: categories,
+      categoryNames: categories,
       streams: [e.url],
       url: e.url,
     })
