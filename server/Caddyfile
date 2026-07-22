@@ -1,0 +1,31 @@
+# Înlocuiește cu domeniul tău real (DNS-ul trebuie să pointeze la IP-ul VPS-ului)
+stream.domeniul-tau.ro {
+	# Rate limiting: max 20 req/s per IP
+	rate_limit {
+		zone stream_limit {
+			key    {remote_host}
+			events 20
+			window 1s
+		}
+	}
+
+	# Reverse proxy către container-ul seby-tv-proxy
+	reverse_proxy proxy:8080
+
+	# Headere de securitate
+	header {
+		X-Content-Type-Options    nosniff
+		X-Frame-Options           DENY
+		Referrer-Policy           no-referrer
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Loguri de acces
+	log {
+		output file /data/access.log {
+			roll_size 10mb
+			roll_keep 3
+		}
+	}
+}

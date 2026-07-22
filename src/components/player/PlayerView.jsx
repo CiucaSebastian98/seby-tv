@@ -25,7 +25,7 @@ export default function PlayerView() {
   const { now, next, hasEpg } = useNowNext(channel?.id)
 
   const videoRef = useRef(null)
-  const { state, error } = useHlsPlayer(videoRef, channel?.url || null)
+  const { state, error, isMutedByPolicy, unmute } = useHlsPlayer(videoRef, channel?.url || null)
   const [showUi, setShowUi] = useState(true)
 
   const back = () => navigate('/')
@@ -144,6 +144,15 @@ export default function PlayerView() {
         <div className="absolute inset-0 z-10 grid place-items-center bg-black">
           <Spinner label="Se conectează la stream…" />
         </div>
+      )}
+
+      {isMutedByPolicy && state === 'playing' && (
+        <button
+          onClick={unmute}
+          className="absolute bottom-24 left-1/2 z-20 -translate-x-1/2 animate-pulse rounded-full bg-accent px-6 py-3 text-base font-bold text-white shadow-lg ring-2 ring-white/30 transition-all hover:scale-105 hover:bg-accent/90"
+        >
+          🔊 Apasă pentru sunet
+        </button>
       )}
 
       {state === 'error' && (

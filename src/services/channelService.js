@@ -1,4 +1,26 @@
 import { parseM3U, countryFromTvgId } from './m3uParser.js'
+import { STREAM_PROXY } from '../constants.js'
+
+/**
+ * Cheie deterministă din URL-ul sursă. TREBUIE să fie IDENTICĂ cu `keyFor` din
+ * server/index.js, ca rescrierea către proxy să se potrivească.
+ */
+function keyFor(url) {
+  let h = 5381
+  for (let i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) >>> 0
+  return h.toString(36)
+}
+
+/**
+ * Fluxurile HLS (.m3u8) se redau direct; cele non-HLS (MPEG-TS brut, IP:port)
+ * se rutează prin proxy-ul ffmpeg dacă e configurat (VITE_STREAM_PROXY).
+ * Fără proxy, rămân neschimbate (player-ul arată mesaj de incompatibilitate).
+ */
+function resolveStreamUrl(rawUrl) {
+  const isHls = /\.m3u8(\?|$)/i.test(rawUrl)
+  if (isHls || !STREAM_PROXY) return rawUrl
+  return `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8`
+}
 
 /**
  * Suprascrieri de logo pentru canale al căror `tvg-logo` din playlist e mort
@@ -104,6 +126,8 @@ export function buildCatalog({ playlistText, countries = [] }) {
     if (cc) usedCountries.add(cc)
     categories.forEach((g) => usedCategories.add(g))
 
+    const url = resolveStreamUrl(e.url)
+
     catalog.push({
       id,
       slug,
@@ -114,8 +138,8 @@ export function buildCatalog({ playlistText, countries = [] }) {
       flag: country?.flag || '',
       categoryIds: categories,
       categoryNames: categories,
-      streams: [e.url],
-      url: e.url,
+      streams: [url],
+      url,
     })
   })
 

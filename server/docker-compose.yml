@@ -1,0 +1,36 @@
+services:
+  proxy:
+    build: .
+    image: seby-tv-proxy
+    container_name: seby-tv-proxy
+    # NU expunem portul la exterior — doar Caddy îl vede prin rețeaua Docker
+    expose:
+      - '8080'
+    environment:
+      - PORT=8080
+      - PLAYLIST_URL=https://iptv-org.github.io/iptv/languages/ron.m3u
+      - IDLE_MS=30000
+      - START_TIMEOUT_MS=15000
+      - MAX_SESSIONS=20
+      - PLAYLIST_REFRESH_MS=21600000
+    restart: unless-stopped
+    tmpfs:
+      - /tmp
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: seby-tv-caddy
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      - proxy
+
+volumes:
+  caddy_data:
+  caddy_config:

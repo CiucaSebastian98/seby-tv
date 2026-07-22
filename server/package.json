@@ -1,0 +1,13 @@
+{
+  "name": "seby-tv-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Proxy ffmpeg on-demand: remuxează fluxurile MPEG-TS brute în HLS pentru browser.",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

@@ -7,6 +7,10 @@ export const IPTV_API = 'https://iptv-org.github.io/api'
 // Sursa EPG (XMLTV) — configurabilă din .env. Goală => fără program TV.
 export const EPG_URL = import.meta.env.VITE_EPG_URL || ''
 
+// Baza proxy-ului ffmpeg (server/). Goală => canalele TS brute rămân neredabile.
+// Ex: https://stream.domeniul-tau.ro
+export const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || '').replace(/\/$/, '')
+
 // Câte canale randăm inițial în listă (protejează UI-ul de mii de itemi).
 export const CHANNEL_PAGE_SIZE = 200
 
