@@ -111,6 +111,12 @@ export function useHlsPlayer(videoRef, url) {
     // ── hls.js (Chrome/Firefox/Edge) ──
     if (Hls.isSupported()) {
       const hls = new Hls({
+        xhrSetup: function (xhr, url) {
+          // Trece automat de pagina de avertizare Ngrok (conturile gratuite o pun implicit)
+          if (url.includes('ngrok-free') || url.includes('ngrok.io')) {
+            xhr.setRequestHeader('ngrok-skip-browser-warning', '1')
+          }
+        },
         enableWorker: true,
         lowLatencyMode: false,
         fragLoadingMaxRetry: 10,
