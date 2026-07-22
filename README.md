@@ -1,4 +1,4 @@
-# TV Online — IPTV Web Player
+# Seby TV — IPTV Web Player
 
 Player IPTV web personal (React + Vite) care consumă datele publice
 [iptv-org](https://github.com/iptv-org/iptv) și redă stream-uri HLS în browser.

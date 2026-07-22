@@ -56,7 +56,7 @@ export default function PlayerView() {
   const fav = isFavorite(channel.id)
 
   return (
-    <div className="fixed inset-0 z-40 bg-black">
+    <div className="fixed inset-0 z-40 bg-black text-white">
       <video
         ref={videoRef}
         controls
@@ -84,7 +84,7 @@ export default function PlayerView() {
               {channel.flag} {channel.name}
             </h2>
             {hasEpg && now && (
-              <p className="truncate text-sm text-muted">
+              <p className="truncate text-sm text-zinc-400">
                 <span className="text-slate-200">{now.title}</span>
                 {now.stop ? ` · ${formatTime(now.start)}–${formatTime(now.stop)}` : ''}
                 {next ? ` · Urmează: ${next.title}` : ''}

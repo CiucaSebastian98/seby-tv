@@ -1,6 +1,28 @@
 import { parseM3U, countryFromTvgId } from './m3uParser.js'
 
 /**
+ * Suprascrieri de logo pentru canale al căror `tvg-logo` din playlist e mort
+ * (ex. link imgur expirat). Cheie = tvg-id (ex. "PROTV.ro@SD"), valoare = URL
+ * logo funcțional. Adaugă aici pe măsură ce găsești/hostezi logo-uri bune.
+ */
+export const LOGO_OVERRIDES = {
+  'PROTV.ro@SD': 'https://www.protv.ro/html/assets/logo.svg',
+  'PrimaNews.ro@SD': 'https://primanews.ro/assets/imgs/logo-primanews.png',
+  'PrimaSport5.ro@SD':
+    'https://static.wikia.nocookie.net/logopedia/images/3/3d/Prima_Sport_5_%28new%29.svg/revision/latest?cb=20220416111908',
+  'ProArena.ro@SD':
+    'https://static.wikia.nocookie.net/logopedia/images/0/0a/Pro_Arena_no_bg.svg/revision/latest?cb=20220407184756',
+  'ProCinema.ro@SD':
+    'https://static.wikia.nocookie.net/logopedia/images/a/a6/Pro_Cinema_logo_2022.svg/revision/latest?cb=20220419100521',
+  'PROTVInternational.ro@SD':
+    'https://static.wikia.nocookie.net/logopedia/images/4/4f/PRO_TV_Interna%C8%9Bional_%282017%29.svg/revision/latest?cb=20220821114700',
+  'PROTVNews.ro@SD':
+    'https://static.wikia.nocookie.net/logopedia/images/8/85/Pro_TV_News_%282017%29.png/revision/latest?cb=20171005155753',
+  'SportExtra.ro@SD':
+    'https://static.wikia.nocookie.net/logopedia/images/a/a7/Sport_Extra_osb.svg/revision/latest/scale-to-width-down/1000?cb=20250815133118',
+}
+
+/**
  * Construiește catalogul din playlist-ul M3U (iptv-org index.m3u).
  * Fiecare intrare M3U are deja canal + URL + logo + categorie, deci nu mai e
  * nevoie de fuzionare channels+streams. `countries.json` (opțional) e folosit
@@ -56,7 +78,7 @@ export function buildCatalog({ playlistText, countries = [] }) {
     catalog.push({
       id,
       name: e.name || e.tvgId || 'Fără nume',
-      logo: e.logo || '',
+      logo: LOGO_OVERRIDES[e.tvgId] || e.logo || '',
       countryCode: cc,
       countryName: country?.name || (cc ? cc.toUpperCase() : 'Necunoscut'),
       flag: country?.flag || '',

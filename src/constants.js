@@ -14,3 +14,4 @@ export const CHANNEL_PAGE_SIZE = 200
 export const SEARCH_DEBOUNCE_MS = 200
 
 export const LS_FAVORITES_KEY = 'tv-online:favorites'
+export const LS_THEME_KEY = 'seby-tv:theme'

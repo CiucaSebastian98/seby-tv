@@ -4,11 +4,13 @@ import Spinner from './components/ui/Spinner.jsx'
 import ErrorBanner from './components/ui/ErrorBanner.jsx'
 import { useChannels } from './hooks/useChannels.js'
 import { useEpgLoader } from './hooks/useEpg.js'
+import { useTheme } from './hooks/useTheme.js'
 import { useAppState } from './context/AppContext.jsx'
 
 export default function App() {
   useChannels()
   useEpgLoader()
+  useTheme() // aplică dark/light pe <html>
 
   const { status, error, currentChannelId } = useAppState()
 
@@ -43,7 +45,7 @@ function BootScreen() {
             ▶
           </span>
           <span className="font-display text-3xl font-extrabold tracking-tight">
-            TV<span className="text-accent">·</span>RO
+            Seby <span className="text-accent">TV</span>
           </span>
         </div>
         <Spinner label="Se încarcă canalele…" />

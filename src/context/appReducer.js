@@ -6,10 +6,11 @@ export const initialState = {
   channels: [], // catalog fuzionat (channelService.buildCatalog)
   countries: [], // opțiuni filtru
   categories: [], // opțiuni filtru
-  filters: { search: '', country: '', category: '' },
+  filters: { search: '', country: 'ro', category: '' }, // România implicit
   currentChannelId: null,
   favorites: [], // id-uri canale (persistate în localStorage)
   epg: { status: 'idle', byChannel: {}, error: null },
+  theme: 'light', // fixat pe light (fără toggle)
 }
 
 export function appReducer(state, action) {
@@ -66,6 +67,9 @@ export function appReducer(state, action) {
         ...state,
         epg: { ...state.epg, status: 'error', error: action.error },
       }
+
+    case ActionTypes.SET_THEME:
+      return { ...state, theme: action.theme }
 
     default:
       return state

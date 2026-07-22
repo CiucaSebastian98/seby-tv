@@ -9,7 +9,21 @@
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <title>TV·RO — IPTV</title>
+    <title>Seby TV — IPTV</title>
+    <script>
+      // Setează tema SINCRON, înainte de React (fără flash, fără curse).
+      (function () {
+        try {
+          var t = localStorage.getItem('seby-tv:theme')
+          if (t !== 'light' && t !== 'dark') {
+            t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+          }
+          document.documentElement.dataset.theme = t
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

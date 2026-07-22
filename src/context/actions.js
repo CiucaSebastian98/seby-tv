@@ -10,6 +10,7 @@ export const ActionTypes = {
   EPG_START: 'EPG_START',
   EPG_SUCCESS: 'EPG_SUCCESS',
   EPG_ERROR: 'EPG_ERROR',
+  SET_THEME: 'SET_THEME',
 }
 
 export const actions = {
@@ -24,4 +25,5 @@ export const actions = {
   epgStart: () => ({ type: ActionTypes.EPG_START }),
   epgSuccess: (byChannel) => ({ type: ActionTypes.EPG_SUCCESS, byChannel }),
   epgError: (error) => ({ type: ActionTypes.EPG_ERROR, error }),
+  setTheme: (theme) => ({ type: ActionTypes.SET_THEME, theme }),
 }

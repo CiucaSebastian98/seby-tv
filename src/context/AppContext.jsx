@@ -2,12 +2,20 @@ import { createContext, useContext, useMemo, useReducer } from 'react'
 import { appReducer, initialState } from './appReducer.js'
 import { actions } from './actions.js'
 import { selectVisibleChannels } from '../services/channelService.js'
+import { getInitialTheme } from '../hooks/useTheme.js'
+import { getInitialFavorites } from '../hooks/useFavorites.js'
 
 const AppStateContext = createContext(null)
 const AppDispatchContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(appReducer, initialState)
+  // Tema + favoritele se inițializează sincron din localStorage / <html>,
+  // ca să nu existe o cursă de hidratare care le suprascrie la montare.
+  const [state, dispatch] = useReducer(appReducer, initialState, (s) => ({
+    ...s,
+    theme: getInitialTheme(),
+    favorites: getInitialFavorites(),
+  }))
 
   // Action creators legați de dispatch, o singură dată.
   const boundActions = useMemo(() => {
