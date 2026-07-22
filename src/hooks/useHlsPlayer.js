@@ -29,6 +29,43 @@ export function useHlsPlayer(videoRef, url) {
     const onPlaying = () => setState('playing')
     video.addEventListener('playing', onPlaying)
 
+    // Fluxuri non-HLS (ex. MPEG-TS pe IP:port, ca Digi Sport) — browserul nu le
+    // poate reda. Încercăm redare nativă (acoperă mp4/webm); TS brut eșuează cu
+    // un mesaj clar, ca să nu pară eroare generică.
+    const isHls = /\.m3u8(\?|$)/i.test(url)
+    if (!isHls) {
+      const fail = () => {
+        setState('error')
+        setError(
+          'Flux incompatibil cu browserul (probabil MPEG-TS pe IP:port). ' +
+            'Funcționează în VLC, dar nu poate fi redat direct în web.',
+        )
+      }
+      // Timeout: dacă nu pornește redarea în 8s, considerăm că nu merge în web.
+      const timer = setTimeout(() => {
+        if (video.readyState < 3) fail()
+      }, 8000)
+      const onPlay = () => clearTimeout(timer)
+      const onErr = () => {
+        clearTimeout(timer)
+        fail()
+      }
+      video.addEventListener('playing', onPlay)
+      video.addEventListener('error', onErr)
+
+      video.src = url
+      video.play().catch(() => {})
+
+      return () => {
+        clearTimeout(timer)
+        video.removeEventListener('playing', onPlay)
+        video.removeEventListener('playing', onPlaying)
+        video.removeEventListener('error', onErr)
+        video.removeAttribute('src')
+        video.load()
+      }
+    }
+
     // Cale nativă (Safari) — o preferăm când e disponibilă.
     const canNative = video.canPlayType('application/vnd.apple.mpegurl')
     if (canNative) {

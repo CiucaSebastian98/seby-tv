@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react'
  * `chips` sunt item-uri { value, label }; `activeValue` marchează selecția.
  * Chip-ul activ e verde (ca „Toate") și e derulat automat în centrul barei.
  */
-export default function ChipsBar({ chips, activeValue, rowIndex, isFocused, registerRef, onSelect }) {
+export default function ChipsBar({ chips, activeValue, rowIndex, isFocused, registerRef, setPos, onSelect }) {
   const activeRef = useRef(null)
 
   // Centrează chip-ul activ când selecția se schimbă.
@@ -27,6 +27,7 @@ export default function ChipsBar({ chips, activeValue, rowIndex, isFocused, regi
             }}
             tabIndex={-1}
             onClick={() => onSelect(chip)}
+            onMouseEnter={() => setPos({ r: rowIndex, c })}
             className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold outline-none transition-colors ${
               focused
                 ? 'bg-focus text-black ring-2 ring-inset ring-black/25'

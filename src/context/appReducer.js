@@ -6,7 +6,7 @@ export const initialState = {
   channels: [], // catalog fuzionat (channelService.buildCatalog)
   countries: [], // opțiuni filtru
   categories: [], // opțiuni filtru
-  filters: { search: '', country: 'ro', category: '' }, // România implicit
+  filters: { search: '', country: '', category: '' }, // toate canalele din playlist (limba ro)
   favorites: [], // id-uri canale (persistate în localStorage)
   epg: { status: 'idle', byChannel: {}, error: null },
   theme: 'light', // fixat pe light (fără toggle)

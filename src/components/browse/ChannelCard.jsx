@@ -5,12 +5,13 @@ import { initials } from '../../utils/format.js'
  * Card de canal stil Netflix. Focus vizibil (inel auriu + scale) pentru navigare
  * cu telecomanda; hover/click pentru mouse. Steaua comută favoritul.
  */
-function ChannelCard({ channel, focused, isFavorite, onSelect, onFavorite, cardRef }) {
+function ChannelCard({ channel, focused, isFavorite, onSelect, onFavorite, onHover, cardRef }) {
   const [imgError, setImgError] = useState(false)
   return (
     <button
       ref={cardRef}
       onClick={() => onSelect(channel)}
+      onMouseEnter={onHover}
       tabIndex={-1}
       className={`group relative flex w-full flex-col gap-2 rounded-xl p-2 text-left outline-none transition-all duration-200 ${
         focused ? 'z-10 scale-105 bg-card shadow-focus' : 'hover:scale-[1.03] hover:bg-card/60'

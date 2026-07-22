@@ -12,6 +12,7 @@ export default function ChannelGrid({
   gridRef,
   isFocused,
   registerRef,
+  setPos,
   isFavorite,
   onSelect,
   onFavorite,
@@ -33,6 +34,7 @@ export default function ChannelGrid({
             isFavorite={isFavorite(ch.id)}
             onSelect={onSelect}
             onFavorite={onFavorite}
+            onHover={() => setPos({ r, c })}
             cardRef={registerRef(r, c)}
           />
         )

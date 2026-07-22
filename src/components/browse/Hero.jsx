@@ -6,7 +6,7 @@ import { initials, formatTime } from '../../utils/format.js'
  * Spotlight-ul de sus (stil Netflix): canal recomandat cu backdrop, EPG now/next
  * și buton de redare focalizabil (un singur item în grila TV).
  */
-export default function Hero({ channel, rowIndex, isFocused, registerRef, isFavorite, onSelect }) {
+export default function Hero({ channel, rowIndex, isFocused, registerRef, setPos, isFavorite, onSelect }) {
   const { now, next, hasEpg } = useNowNext(channel?.id)
   const [logoBad, setLogoBad] = useState(false)
   useEffect(() => setLogoBad(false), [channel?.id])
@@ -71,6 +71,7 @@ export default function Hero({ channel, rowIndex, isFocused, registerRef, isFavo
               ref={registerRef(rowIndex, 0)}
               tabIndex={-1}
               onClick={() => onSelect(channel)}
+              onMouseEnter={() => setPos({ r: rowIndex, c: 0 })}
               className={`flex items-center gap-2 rounded-full px-6 py-3 font-display text-base font-bold outline-none transition-all ${
                 focused
                   ? 'scale-105 bg-focus text-black shadow-focus'

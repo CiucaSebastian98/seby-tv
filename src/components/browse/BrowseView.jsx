@@ -103,6 +103,7 @@ export default function BrowseView() {
         rowIndex={0}
         isFocused={isFocused}
         registerRef={registerRef}
+        setPos={setPos}
         onSelect={selectChip}
       />
 
@@ -112,6 +113,7 @@ export default function BrowseView() {
           rowIndex={1}
           isFocused={isFocused}
           registerRef={registerRef}
+          setPos={setPos}
           isFavorite={isFavorite}
           onSelect={playChannel}
         />
@@ -126,6 +128,7 @@ export default function BrowseView() {
             gridRef={gridRef}
             isFocused={isFocused}
             registerRef={registerRef}
+            setPos={setPos}
             isFavorite={isFavorite}
             onSelect={playChannel}
             onFavorite={favChannel}
