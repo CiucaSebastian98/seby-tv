@@ -5,11 +5,13 @@ Player IPTV web personal (React + Vite) care consumă datele publice
 
 ## Funcționalități
 
+- 🎬 Interfață stil **Netflix, TV-friendly** — hero/spotlight + rânduri orizontale pe categorii
+- 🕹️ **Navigare cu telecomanda / tastatura**: săgeți, `Enter` redă, `f` favorite, `/` caută, `Esc` înapoi
 - 📺 Canale românești din playlist-ul M3U `iptv-org/languages/ron.m3u` (~145 canale)
-- 🔎 Căutare după nume + filtrare pe țară / categorie
-- ⭐ Favorite persistente (localStorage)
-- ▶️ Player HLS (`hls.js`) cu fallback nativ pe Safari + recovery pe erori
-- 🗓️ EPG now/next (opțional, din sursă XMLTV configurabilă)
+- 🔎 Căutare după nume + filtrare pe categorie (chips) / țară
+- ⭐ Favorite persistente (localStorage), afișate ca rând propriu în capul listei
+- ▶️ Player HLS pe tot ecranul (`hls.js`) cu fallback nativ pe Safari + recovery pe erori
+- 🗓️ EPG now/next în hero și în player (opțional, din sursă XMLTV configurabilă)
 
 ## Pornire
 
@@ -37,10 +39,14 @@ Fără această variabilă aplicația funcționează normal, doar fără program
 ```
 src/
 ├─ api/        # fetch + cache (playlist M3U + countries.json)
-├─ services/   # m3uParser, channelService (catalog+filtre), epgService (XMLTV)
+├─ services/   # m3uParser, channelService (catalog/grupare/filtre), epgService (XMLTV)
 ├─ context/    # store global: Context API + useReducer
-├─ hooks/      # useChannels, useFavorites, useHlsPlayer, useEpg
-├─ components/ # player/, channels/, ui/
+├─ hooks/      # useChannels, useFavorites, useHlsPlayer, useEpg, useGridNavigation
+├─ components/
+│  ├─ layout/  # TopBar (logo + search + țară)
+│  ├─ browse/  # BrowseView, Hero, ChipsBar, CategoryRow, ChannelCard
+│  ├─ player/  # PlayerView (fullscreen)
+│  └─ ui/      # Spinner, ErrorBanner
 └─ utils/
 ```
 

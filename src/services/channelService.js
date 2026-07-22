@@ -97,6 +97,24 @@ export function partitionFavorites(channels, favoriteIds) {
 }
 
 /**
+ * Grupează canalele pe categorie (un canal poate apărea în mai multe rânduri,
+ * exact ca la Netflix). Ordinea canalelor din intrare (alfabetică) e păstrată.
+ * @returns {Array<{id, name, channels}>} sortat alfabetic după numele categoriei
+ */
+export function groupByCategory(channels) {
+  const map = new Map()
+  for (const ch of channels) {
+    for (const cat of ch.categoryIds) {
+      if (!map.has(cat)) map.set(cat, [])
+      map.get(cat).push(ch)
+    }
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, chans]) => ({ id: name, name, channels: chans }))
+}
+
+/**
  * Selector: aplică filtrele (search/country/category) peste catalog.
  * Pur, memoizabil — nu ține state. (neschimbat față de varianta JSON)
  */
