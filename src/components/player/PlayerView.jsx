@@ -59,6 +59,19 @@ export default function PlayerView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channel])
 
+  // Sunet „no signal" în buclă cât timp stream-ul e în eroare.
+  useEffect(() => {
+    if (state !== 'error') return
+    const audio = new Audio('/no-signal.mp3')
+    audio.loop = true
+    audio.volume = 0.5
+    audio.play().catch(() => {}) // autoplay poate fi blocat de browser
+    return () => {
+      audio.pause()
+      audio.currentTime = 0
+    }
+  }, [state])
+
   // Slug invalid (canal inexistent) → înapoi la răsfoire.
   if (!channel) return <Navigate to="/" replace />
   const fav = isFavorite(channel.id)
@@ -73,6 +86,20 @@ export default function PlayerView() {
         className="h-full w-full object-contain"
       />
 
+      {/* Fundal GIF la eroare (în spatele barei de sus și al bannerului) */}
+      {state === 'error' && (
+        <>
+          <img
+            src="https://i.imgur.com/2346ftT.gif"
+            alt=""
+            aria-hidden
+            referrerPolicy="no-referrer"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/60" />
+        </>
+      )}
+
       {/* Overlay superior */}
       <div
         className={`pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/85 via-black/40 to-transparent p-6 transition-opacity duration-300 md:p-8 ${
@@ -82,7 +109,7 @@ export default function PlayerView() {
         <div className="pointer-events-auto flex items-center gap-4">
           <button
             onClick={back}
-            className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur transition-colors hover:bg-white/20"
+            className="rounded-full bg-black/60 px-4 py-2 text-sm font-semibold ring-1 ring-white/25 backdrop-blur transition-colors hover:bg-black/80"
           >
             ← Înapoi
           </button>
@@ -102,8 +129,10 @@ export default function PlayerView() {
 
           <button
             onClick={() => toggleFavorite(channel.id)}
-            className={`ml-auto shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-              fav ? 'bg-focus text-black' : 'bg-white/10 hover:bg-white/20'
+            className={`ml-auto shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1 backdrop-blur transition-colors ${
+              fav
+                ? 'bg-focus text-black ring-transparent'
+                : 'bg-black/60 ring-white/25 hover:bg-black/80'
             }`}
           >
             {fav ? '★ Favorit' : '☆ Favorite'}
@@ -112,21 +141,23 @@ export default function PlayerView() {
       </div>
 
       {state === 'loading' && (
-        <div className="absolute inset-0 grid place-items-center bg-black/50">
+        <div className="absolute inset-0 z-10 grid place-items-center bg-black">
           <Spinner label="Se conectează la stream…" />
         </div>
       )}
 
       {state === 'error' && (
-        <div className="absolute inset-0 grid place-items-center p-6">
-          <div className="max-w-md">
+        <div className="pointer-events-none absolute inset-0 grid place-items-center p-6">
+          <div className="pointer-events-auto max-w-md rounded-2xl bg-black/80 p-6 shadow-2xl ring-1 ring-white/10 backdrop-blur-md">
             <ErrorBanner title="Stream indisponibil" message={error} />
-            <button
-              onClick={back}
-              className="mt-4 rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
-            >
-              ← Înapoi la canale
-            </button>
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={back}
+                className="rounded-full bg-white/15 px-5 py-2 text-sm font-semibold ring-1 ring-white/25 transition-colors hover:bg-white/25"
+              >
+                ← Înapoi la canale
+              </button>
+            </div>
           </div>
         </div>
       )}
