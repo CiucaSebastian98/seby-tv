@@ -3,7 +3,7 @@ services:
     build: .
     image: seby-tv-proxy
     container_name: seby-tv-proxy
-    # NU expunem portul la exterior — doar Caddy îl vede prin rețeaua Docker
+    # Portul 8080 e vizibil DOAR pentru ngrok în rețeaua Docker internă
     expose:
       - '8080'
     environment:
@@ -17,20 +17,18 @@ services:
     tmpfs:
       - /tmp
 
-  caddy:
-    image: caddy:2-alpine
-    container_name: seby-tv-caddy
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: seby-tv-ngrok
     restart: unless-stopped
+    environment:
+      # Token-ul tău de pe contul ngrok
+      - NGROK_AUTHTOKEN=3Gs2gM2xKel5D6o3X2bY0Z29BN2_83m6NnudEeVTW7GqddCqu
+    # Comanda care expune proxy:8080 și pune parolă + domeniu static
+    command:
+      - "http"
+      - "proxy:8080"
+      - "--basic-auth=seby:parola123"
+      - "--url=charging-impart-musket.ngrok-free.dev"
     depends_on:
       - proxy
-
-volumes:
-  caddy_data:
-  caddy_config:
