@@ -7,7 +7,6 @@ export const initialState = {
   countries: [], // opțiuni filtru
   categories: [], // opțiuni filtru
   filters: { search: '', country: 'ro', category: '' }, // România implicit
-  currentChannelId: null,
   favorites: [], // id-uri canale (persistate în localStorage)
   epg: { status: 'idle', byChannel: {}, error: null },
   theme: 'light', // fixat pe light (fără toggle)
@@ -38,9 +37,6 @@ export function appReducer(state, action) {
 
     case ActionTypes.RESET_FILTERS:
       return { ...state, filters: initialState.filters }
-
-    case ActionTypes.SET_CURRENT_CHANNEL:
-      return { ...state, currentChannelId: action.id }
 
     case ActionTypes.TOGGLE_FAVORITE: {
       const has = state.favorites.includes(action.id)

@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import TopBar from '../layout/TopBar.jsx'
 import ChipsBar from './ChipsBar.jsx'
 import Hero from './Hero.jsx'
@@ -18,8 +19,9 @@ const FAV = '__fav'
  */
 export default function BrowseView() {
   const { channels, categories, filters } = useAppState()
-  const { setFilter, setCurrentChannel } = useAppActions()
+  const { setFilter } = useAppActions()
   const { favorites, isFavorite, toggleFavorite } = useFavorites()
+  const navigate = useNavigate()
 
   const gridRef = useRef(null)
   const cols = useColumns(gridRef)
@@ -73,14 +75,14 @@ export default function BrowseView() {
   }
 
   // Handlere mouse.
-  const playChannel = (ch) => setCurrentChannel(ch.id)
+  const playChannel = (ch) => navigate(`/${ch.slug}`)
   const favChannel = (ch) => toggleFavorite(ch.id)
   const selectChip = (chip) => applyChip(chip.value)
 
   // Handlere tastatură (item din grilă).
   const onGridSelect = (item) => {
     if (item.kind === 'chip') applyChip(item.value)
-    else if (item.kind === 'channel') setCurrentChannel(item.channel.id)
+    else if (item.kind === 'channel') navigate(`/${item.channel.slug}`)
   }
   const onGridFavorite = (item) => {
     if (item.kind === 'channel') toggleFavorite(item.channel.id)

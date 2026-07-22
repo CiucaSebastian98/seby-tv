@@ -55,12 +55,3 @@ export function useVisibleChannels() {
     [channels, filters],
   )
 }
-
-/** Canalul curent selectat (obiect complet) sau null. */
-export function useCurrentChannel() {
-  const { channels, currentChannelId } = useAppState()
-  return useMemo(
-    () => channels.find((c) => c.id === currentChannelId) || null,
-    [channels, currentChannelId],
-  )
-}

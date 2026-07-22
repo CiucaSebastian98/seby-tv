@@ -1,27 +1,34 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useHlsPlayer } from '../../hooks/useHlsPlayer.js'
 import { useNowNext } from '../../hooks/useEpg.js'
 import { useFavorites } from '../../hooks/useFavorites.js'
-import { useAppActions, useCurrentChannel } from '../../context/AppContext.jsx'
+import { useAppState } from '../../context/AppContext.jsx'
 import { formatTime } from '../../utils/format.js'
 import Spinner from '../ui/Spinner.jsx'
 import ErrorBanner from '../ui/ErrorBanner.jsx'
 
 /**
- * Redare pe tot ecranul. Overlay-ul (înapoi / titlu / EPG / favorite) se
- * auto-ascunde după inactivitate. Escape/Backspace = înapoi, f = favorite.
+ * Redare pe tot ecranul, pe URL propriu (/pro-tv etc.). Canalul e rezolvat din
+ * slug-ul din URL. Overlay-ul se auto-ascunde. Escape/Backspace = înapoi, f = favorite.
  */
 export default function PlayerView() {
-  const channel = useCurrentChannel()
-  const { setCurrentChannel } = useAppActions()
+  const { slug } = useParams()
+  const navigate = useNavigate()
+  const { channels } = useAppState()
   const { isFavorite, toggleFavorite } = useFavorites()
+
+  const channel = useMemo(
+    () => channels.find((c) => c.slug === slug) || null,
+    [channels, slug],
+  )
   const { now, next, hasEpg } = useNowNext(channel?.id)
 
   const videoRef = useRef(null)
   const { state, error } = useHlsPlayer(videoRef, channel?.url || null)
   const [showUi, setShowUi] = useState(true)
 
-  const back = () => setCurrentChannel(null)
+  const back = () => navigate('/')
 
   // Auto-hide overlay.
   useEffect(() => {
@@ -52,7 +59,8 @@ export default function PlayerView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channel])
 
-  if (!channel) return null
+  // Slug invalid (canal inexistent) → înapoi la răsfoire.
+  if (!channel) return <Navigate to="/" replace />
   const fav = isFavorite(channel.id)
 
   return (

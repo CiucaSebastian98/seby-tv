@@ -1,3 +1,4 @@
+import { Route, Routes } from 'react-router-dom'
 import BrowseView from './components/browse/BrowseView.jsx'
 import PlayerView from './components/player/PlayerView.jsx'
 import Spinner from './components/ui/Spinner.jsx'
@@ -12,7 +13,7 @@ export default function App() {
   useEpgLoader()
   useTheme() // aplică dark/light pe <html>
 
-  const { status, error, currentChannelId } = useAppState()
+  const { status, error } = useAppState()
 
   return (
     <div className="grain min-h-screen">
@@ -30,8 +31,13 @@ export default function App() {
         </div>
       )}
 
-      {status === 'ready' &&
-        (currentChannelId ? <PlayerView /> : <BrowseView />)}
+      {status === 'ready' && (
+        <Routes>
+          <Route path="/" element={<BrowseView />} />
+          {/* /pro-tv, /antena-1 etc. — un canal per URL */}
+          <Route path="/:slug" element={<PlayerView />} />
+        </Routes>
+      )}
     </div>
   )
 }

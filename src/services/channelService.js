@@ -32,6 +32,26 @@ export const LOGO_OVERRIDES = {
  * (context, hooks, componente) rămâne neschimbat.
  */
 
+// Diacritice românești -> ASCII (pentru slug-uri curate în URL).
+const RO_DIACRITICS = /[ăâîșşțţ]/gi
+const RO_MAP = { ă: 'a', â: 'a', î: 'i', ș: 's', ş: 's', ț: 't', ţ: 't' }
+
+/**
+ * Slug din numele canalului, pentru URL: "PRO TV (1080p)" -> "pro-tv".
+ * Taie sufixele de calitate ((1080p), [Not 24/7]) și normalizează diacriticele.
+ */
+export function slugify(name) {
+  const base = String(name).split(/[([]/)[0] // înainte de "(" sau "["
+  return (
+    base
+      .trim()
+      .replace(RO_DIACRITICS, (ch) => RO_MAP[ch.toLowerCase()] || ch)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'canal'
+  )
+}
+
 /** @returns {Map<string, {name, flag}>} indexat pe cod țară (ex: "ro") */
 function indexCountries(countries = []) {
   const map = new Map()
@@ -53,6 +73,8 @@ export function buildCatalog({ playlistText, countries = [] }) {
   const usedCategories = new Set()
   const seenIds = new Set()
 
+  const slugCounts = new Map()
+
   const catalog = []
   entries.forEach((e, i) => {
     if (!e.url) return
@@ -72,12 +94,20 @@ export function buildCatalog({ playlistText, countries = [] }) {
     if (seenIds.has(id)) id = `${id}#${i}`
     seenIds.add(id)
 
+    // Slug unic pentru URL (ex: /pro-tv, /antena-1). Coliziuni -> -2, -3...
+    const name = e.name || e.tvgId || 'Fără nume'
+    let slug = slugify(name)
+    const seen = slugCounts.get(slug) || 0
+    slugCounts.set(slug, seen + 1)
+    if (seen > 0) slug = `${slug}-${seen + 1}`
+
     if (cc) usedCountries.add(cc)
     categories.forEach((g) => usedCategories.add(g))
 
     catalog.push({
       id,
-      name: e.name || e.tvgId || 'Fără nume',
+      slug,
+      name,
       logo: LOGO_OVERRIDES[e.tvgId] || e.logo || '',
       countryCode: cc,
       countryName: country?.name || (cc ? cc.toUpperCase() : 'Necunoscut'),
