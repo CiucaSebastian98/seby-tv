@@ -267,7 +267,7 @@ app.use((req, res, next) => {
   // CORS - Lăsăm liber pentru player-ul web (deoarece e deja securizat cu token)
   res.set('Access-Control-Allow-Origin', '*')
   res.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
-  res.set('Access-Control-Allow-Headers', 'Content-Type')
+  res.set('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning')
   // Securitate
   res.set('X-Content-Type-Options', 'nosniff')
   res.set('X-Frame-Options', 'DENY')
