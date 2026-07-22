@@ -76,6 +76,21 @@ export function buildCatalog({ playlistText, countries = [] }) {
 }
 
 /**
+ * Împarte canalele în favorite + restul, păstrând ordinea de intrare (alfabetică)
+ * în fiecare grup. Pur — folosit pentru a afișa favoritele în capul listei.
+ * @returns {{ favorites: Array, rest: Array }}
+ */
+export function partitionFavorites(channels, favoriteIds) {
+  const favSet = favoriteIds instanceof Set ? favoriteIds : new Set(favoriteIds)
+  const favorites = []
+  const rest = []
+  for (const ch of channels) {
+    ;(favSet.has(ch.id) ? favorites : rest).push(ch)
+  }
+  return { favorites, rest }
+}
+
+/**
  * Selector: aplică filtrele (search/country/category) peste catalog.
  * Pur, memoizabil — nu ține state. (neschimbat față de varianta JSON)
  */
