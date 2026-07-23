@@ -138,7 +138,13 @@ async function createSession(key) {
     '-i', ch.url,
     '-fflags', '+genpts+discardcorrupt',   // regen timestamps + ignoră frame-uri corupte
     '-err_detect', 'ignore_err',           // tolerează erori din sursa IPTV
-    '-c:v', 'copy',                        // video: păstrăm codec-ul original (H.264)
+    // Video: Transcodare + De-interlacing (yadif) + profil ultrafast pentru a salva CPU pe VPS
+    '-c:v', 'libx264',
+    '-preset', 'veryfast',                 // Compromis excelent între calitate și viteza CPU-ului
+    '-vf', 'yadif=0:-1:0',                 // Filtrul magic care scapă de glitch-urile și frame-urile intercalate
+    '-crf', '25',                          // Calitatea (mai mic = mai bun, dar consumă mai multă bandă. 25 e ok)
+    '-maxrate', '3M', '-bufsize', '6M',    // Limităm la max 3 Mbps ca să nu sacadeze pe net slab
+    '-profile:v', 'main', '-level', '4.0', // Compatibilitate maximă cu iOS și Smart TV
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k', // audio: transcodăm la AAC
     '-async', '1',                         // sincronizare A/V (previne drift)
     '-f', 'hls',
