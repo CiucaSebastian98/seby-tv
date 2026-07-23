@@ -89,26 +89,7 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
 
     const isHls = /\.m3u8(\?|$)/i.test(url)
 
-    // ── Non-HLS (MPEG-TS brut) ──
-    if (!isHls) {
-      const fail = () => {
-        clearLoadingTimeout()
-        setState('error')
-        setError('Flux incompatibil cu browserul (MPEG-TS). Funcționează în VLC.')
-      }
-      const timer = setTimeout(() => { if (video.readyState < 3) fail() }, 8000)
-      const onErr = () => { clearTimeout(timer); fail() }
-      video.addEventListener('error', onErr)
-      video.src = url
-      tryPlay(video)
-      return () => {
-        clearTimeout(timer); clearLoadingTimeout()
-        video.removeEventListener('playing', markPlaying)
-        video.removeEventListener('timeupdate', onTimeUpdate)
-        video.removeEventListener('error', onErr)
-        video.removeAttribute('src'); video.load()
-      }
-    }
+
 
     // ── MPEG-TS brut (Pass-Through) ──
     if (type === 'mpegts') {
