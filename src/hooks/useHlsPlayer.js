@@ -91,6 +91,14 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
 
 
 
+    const fail = (msg) => {
+      clearLoadingTimeout()
+      setState('error')
+      setError(msg || 'Stream indisponibil. Verificați conexiunea.')
+    }
+    const timer = setTimeout(() => { if (video.readyState < 3) fail('Timeout la conectarea la stream.') }, 10000)
+    const onErr = (e) => { clearTimeout(timer); fail(e?.message) }
+
     // ── MPEG-TS brut (Pass-Through) ──
     if (type === 'mpegts') {
       if (mpegts.getFeatureList().mseLivePlayback) {
@@ -101,6 +109,10 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
         }, {
           enableStashBuffer: false,
           stashInitialSize: 128,
+          // Bypasăm pagina de warning de la Ngrok
+          headers: {
+            'ngrok-skip-browser-warning': '1'
+          }
         })
         
         player.attachMediaElement(video)
