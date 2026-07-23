@@ -142,9 +142,9 @@ async function createSession(key) {
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k', // audio: transcodăm la AAC
     '-async', '1',                         // sincronizare A/V (previne drift)
     '-f', 'hls',
-    '-hls_time', '2',                      // segmente mai scurte = buffering mai rapid
-    '-hls_list_size', '10',
-    '-hls_flags', 'delete_segments+append_list+omit_endlist+independent_segments',
+    '-hls_time', '4',                      // Timp mai mare (4s) dă șansa să prindă keyframe-uri curate din sursă
+    '-hls_list_size', '8',
+    '-hls_flags', 'delete_segments+append_list+omit_endlist', // Am scos independent_segments care strică playerele native
     '-hls_segment_type', 'mpegts',
     '-mpegts_flags', '+resend_headers',    // CRUCIAL: headere PAT/PMT în fiecare segment
     '-hls_segment_filename', join(dir, 'seg-%d.ts'),
