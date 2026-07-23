@@ -80,11 +80,27 @@ neredabile (mesaj clar în player).
 | `START_TIMEOUT_MS` | 15000 | cât așteaptă primul segment înainte de 504 (ms) |
 | `PLAYLIST_REFRESH_MS` | 21600000 | interval reîncărcare playlist (6h implicit) |
 | `MAX_SESSIONS` | 20 | număr maxim de sesiuni ffmpeg simultane |
+| `AUTH_TOKEN` | `parola123` | token cerut pe rutele care consumă bandă (= `VITE_STREAM_TOKEN`) |
+| `MAX_DIRECT` | 30 | număr maxim de pass-through-uri MPEG-TS simultane |
+| `UPSTREAM_TIMEOUT_MS` | 15000 | inactivitate acceptată pe socket-ul sursei (ms) |
+| `RELOAD_COOLDOWN_MS` | 60000 | cooldown la reîncărcarea playlist-ului pe cheie necunoscută |
+
+## Rutarea fluxurilor
+
+| Sursa din M3U | Ruta | De ce |
+|---|---|---|
+| `http(s)://….m3u8`, `.mpd` | `/stream/:key/index.m3u8` | ffmpeg remuxează în HLS |
+| `http(s)://IP:PORT/…` (TS brut) | `/direct-stream/:key` | pass-through, 0% CPU |
+| `rtmp://`, `udp://`, `rtsp://` | `/stream/:key/index.m3u8` | doar ffmpeg le poate citi |
 
 ## Securitate
 
-- **Allowlist**: proxy-ul accesează doar URL-uri din playlist-ul M3U (previne SSRF)
-- **Key validation**: doar caractere alfanumerice, max 20 caractere
+- **Token**: obligatoriu pe `/direct-stream`, `*.m3u8`, `/channels`, `/stats`.
+  Segmentele `.ts` fac excepție (hls.js le cere pe URL-uri relative, fără query);
+  ele există doar cât timp rulează o sesiune pornită cu token.
+- **Allowlist**: proxy-ul accesează doar URL-uri din playlist-ul M3U (previne SSRF).
+  Redirect-urile sunt urmărite (max 5), dar tot spre destinații HTTP(S).
+- **Key validation**: hash base36 pe două benzi (`abc-def`), max 20 caractere/bandă
 - **Path traversal**: fișierele servite sunt restricționate la directorul sesiunii
 - **Extensii permise**: doar `.ts` și `.m3u8`
 - **Headers**: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`
@@ -95,3 +111,5 @@ neredabile (mesaj clar în player).
   Pentru astea ar trebui **transcodare** (`-c:v libx264 -c:a aac`) — CPU mult mai mare.
 - Un canal viu = un proces ffmpeg cât timp cineva îl vizionează.
 - Max `MAX_SESSIONS` canale simultane (la limită, cea mai veche sesiune inactivă e oprită).
+- Max `MAX_DIRECT` pass-through-uri simultane (la limită se răspunde `503`).
+- Fluxurile MPEG-TS brute au nevoie de MSE — nu merg pe iOS (Safari nu îl expune).

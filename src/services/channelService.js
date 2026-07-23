@@ -1,38 +1,65 @@
 import { parseM3U, countryFromTvgId } from './m3uParser.js'
-import { STREAM_PROXY } from '../constants.js'
+import { STREAM_PROXY, STREAM_TOKEN } from '../constants.js'
 
 /**
  * Cheie deterministă din URL-ul sursă. TREBUIE să fie IDENTICĂ cu `keyFor` din
  * server/index.js, ca rescrierea către proxy să se potrivească.
+ *
+ * Două „benzi" djb2 independente (64 de biți efectivi în loc de 32): playlist-ul
+ * are mii de intrări, iar o coliziune ar însemna că userul cere un canal și
+ * primește altul.
  */
 function keyFor(url) {
-  let h = 5381
-  for (let i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) >>> 0
-  return h.toString(36)
+  let h1 = 5381
+  let h2 = 52711
+  for (let i = 0; i < url.length; i++) {
+    const c = url.charCodeAt(i)
+    h1 = ((h1 << 5) + h1 + c) >>> 0
+    h2 = ((h2 << 5) + h2 + (c ^ 0x5f)) >>> 0
+  }
+  return h1.toString(36) + '-' + h2.toString(36)
 }
 
+/** Pagina rulează pe https? Atunci sursele http:// sunt blocate (mixed content). */
+const IS_HTTPS_PAGE =
+  typeof window !== 'undefined' && window.location?.protocol === 'https:'
+
 /**
- * Fluxurile HLS (.m3u8) se redau direct; cele non-HLS (MPEG-TS brut, IP:port)
- * se rutează prin proxy-ul ffmpeg dacă e configurat (VITE_STREAM_PROXY).
- * Fără proxy, rămân neschimbate (player-ul arată mesaj de incompatibilitate).
+ * Rutare explicită, pe schemă + extensie (nu „tot ce nu e .m3u8 e MPEG-TS"):
+ *
+ *   http(s) + .m3u8 / .mpd  → ffmpeg (/stream)        — remux în HLS
+ *   http(s) + altceva       → pass-through (/direct-stream) — TS brut, 0% CPU
+ *   rtmp/udp/rtsp/…         → ffmpeg (/stream)        — singurul care le poate citi
+ *
+ * Fără proxy configurat se poate reda doar HLS servit peste un protocol
+ * compatibil cu pagina; restul primesc `type: 'unsupported'` + un motiv, ca
+ * player-ul să explice concret de ce nu merge.
  */
 function resolveStreamUrl(rawUrl) {
   const isHls = /\.m3u8(\?|$)/i.test(rawUrl)
-  if (!STREAM_PROXY) return { url: rawUrl, type: isHls ? 'hls' : 'mpegts' }
+  const isDash = /\.mpd(\?|$)/i.test(rawUrl)
+  const isHttp = /^https?:\/\//i.test(rawUrl)
 
-  if (isHls) {
-    // HLS merge prin proxy-ul clasic (ffmpeg)
+  if (STREAM_PROXY) {
+    const key = keyFor(rawUrl)
+    if (isHttp && !isHls && !isDash) {
+      return {
+        url: `${STREAM_PROXY}/direct-stream/${key}?token=${STREAM_TOKEN}`,
+        type: 'mpegts',
+      }
+    }
     return {
-      url: `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8?token=parola123`,
+      url: `${STREAM_PROXY}/stream/${key}/index.m3u8?token=${STREAM_TOKEN}`,
       type: 'hls',
     }
-  } else {
-    // MPEG-TS brut merge prin noul pass-through (0% CPU)
-    return {
-      url: `${STREAM_PROXY}/direct-stream/${keyFor(rawUrl)}?token=parola123`,
-      type: 'mpegts',
-    }
   }
+
+  if (!isHttp) return { url: rawUrl, type: 'unsupported', reason: 'protocol' }
+  if (!isHls) return { url: rawUrl, type: 'unsupported', reason: 'raw-ts' }
+  if (IS_HTTPS_PAGE && /^http:\/\//i.test(rawUrl)) {
+    return { url: rawUrl, type: 'unsupported', reason: 'mixed-content' }
+  }
+  return { url: rawUrl, type: 'hls' }
 }
 
 /**
@@ -139,7 +166,7 @@ export function buildCatalog({ playlistText, countries = [] }) {
     if (cc) usedCountries.add(cc)
     categories.forEach((g) => usedCategories.add(g))
 
-    const { url, type } = resolveStreamUrl(e.url)
+    const { url, type, reason } = resolveStreamUrl(e.url)
 
     catalog.push({
       id,
@@ -154,6 +181,8 @@ export function buildCatalog({ playlistText, countries = [] }) {
       streams: [{ url, type }],
       url,
       type,
+      reason: reason || '',
+      sourceUrl: e.url,
     })
   })
 

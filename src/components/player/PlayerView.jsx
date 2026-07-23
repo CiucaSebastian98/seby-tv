@@ -28,7 +28,8 @@ export default function PlayerView() {
   const { state, error, isMutedByPolicy, unmute } = useHlsPlayer(
     videoRef,
     channel?.url || null,
-    channel?.type || 'hls'
+    channel?.type || 'hls',
+    channel?.reason || '',
   )
   const [showUi, setShowUi] = useState(true)
 

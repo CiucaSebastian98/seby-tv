@@ -3,16 +3,34 @@ import Hls from 'hls.js'
 import mpegts from 'mpegts.js'
 
 /**
+ * Cât așteptăm PRIMA redare înainte de a declara stream-ul mort. Un singur
+ * watchdog pentru toate tipurile — se anulează în clipa în care apar date.
+ */
+const WATCHDOG_MS = 30_000
+
+/** Mesaje pentru canalele pe care browserul nu le poate reda fără proxy. */
+const UNSUPPORTED_MESSAGES = {
+  'mixed-content':
+    'Sursa acestui canal e pe http://, iar aplicația rulează pe https:// — browserul blochează fluxul. E nevoie de proxy (VITE_STREAM_PROXY).',
+  'raw-ts':
+    'Canal cu flux MPEG-TS brut (IP:port), nu HLS. Browserul nu îl poate reda direct — e nevoie de proxy (VITE_STREAM_PROXY).',
+  protocol:
+    'Protocol nesuportat de browser (rtmp/udp/rtsp). E nevoie de proxy (VITE_STREAM_PROXY), care îl remuxează cu ffmpeg.',
+}
+
+/**
  * Atașează un stream video la elementul <video> referit.
  *  - tip 'hls': hls.js (Chrome) sau Nativ (Safari)
  *  - tip 'mpegts': mpegts.js (MSE pentru pass-through proxy)
+ *  - tip 'unsupported': nu se încearcă redarea, se explică de ce
  *
  * @param {React.RefObject<HTMLVideoElement>} videoRef
  * @param {string|null} url
- * @param {'hls'|'mpegts'} type
+ * @param {'hls'|'mpegts'|'unsupported'} type
+ * @param {string} [reason] motivul pentru type === 'unsupported'
  * @returns {{ state, error, isMutedByPolicy, unmute }}
  */
-export function useHlsPlayer(videoRef, url, type = 'hls') {
+export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
   const [state, setState] = useState('idle')
   const [error, setError] = useState(null)
   const [isMutedByPolicy, setIsMutedByPolicy] = useState(false)
@@ -53,6 +71,13 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
       return
     }
 
+    // Canal pe care browserul nu are cum să îl redea — explicăm, nu încercăm.
+    if (type === 'unsupported') {
+      setState('error')
+      setError(UNSUPPORTED_MESSAGES[reason] || UNSUPPORTED_MESSAGES.protocol)
+      return
+    }
+
     setState('loading')
     setError(null)
     setIsMutedByPolicy(false)
@@ -62,23 +87,32 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
     // ── Detectare redare ──
     let playbackDetected = false
 
-    let loadingTimeout = setTimeout(() => {
-      if (!playbackDetected && video.readyState < 3) {
-        setState('error')
-        setError('Stream-ul nu a pornit la timp. Sursa poate fi offline, geo-blocată sau incompatibilă.')
-      }
-    }, 25_000)
-
-    const clearLoadingTimeout = () => {
-      if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null }
+    const markPlaying = () => {
+      if (playbackDetected) return
+      playbackDetected = true
+      clearWatchdog()
+      setState('playing')
     }
 
-    const markPlaying = () => {
-      if (!playbackDetected) {
-        playbackDetected = true
-        clearLoadingTimeout()
-        setState('playing')
-      }
+    // UN SINGUR watchdog. Se anulează la prima redare, iar la expirare verifică
+    // dacă între timp au sosit date — altfel un stream care merge (dar are un
+    // readyState scăzut momentan) primea overlay-ul „Timeout la conectare".
+    let watchdog = setTimeout(() => {
+      watchdog = null
+      if (playbackDetected) return
+      if (video.readyState >= 2) return markPlaying()
+      fail('Stream-ul nu a pornit la timp. Sursa poate fi offline, geo-blocată sau incompatibilă.')
+    }, WATCHDOG_MS)
+
+    function clearWatchdog() {
+      if (watchdog) { clearTimeout(watchdog); watchdog = null }
+    }
+
+    /** Eroare fatală: oprește watchdog-ul și afișează overlay-ul. */
+    function fail(msg) {
+      clearWatchdog()
+      setState('error')
+      setError(msg || 'Stream indisponibil. Verificați conexiunea.')
     }
 
     video.addEventListener('playing', markPlaying)
@@ -86,20 +120,11 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
       if (video.currentTime > 0 && !video.paused) markPlaying()
     }
     video.addEventListener('timeupdate', onTimeUpdate)
+    // Datele au ajuns și sunt decodabile — chiar dacă autoplay e blocat, nu e
+    // o problemă de conexiune, deci watchdog-ul nu mai are ce căuta.
+    video.addEventListener('loadeddata', markPlaying)
 
-    const isHls = /\.m3u8(\?|$)/i.test(url)
-
-
-
-    const fail = (msg) => {
-      clearLoadingTimeout()
-      setState('error')
-      setError(msg || 'Stream indisponibil. Verificați conexiunea.')
-    }
-    // Timeout mărit la 30s. Fluxurile brute au nevoie de timp să umple buffer-ul MSE.
-    // Când timeout-ul dădea kill la 10s, Chrome raporta "CORS error" în mod fals pentru fetch-ul anulat.
-    const timer = setTimeout(() => { if (video.readyState < 3) fail('Timeout la conectarea la stream.') }, 30000)
-    const onErr = (e) => { clearTimeout(timer); fail(e?.message) }
+    const onErr = (e) => fail(e?.message)
 
     // ── MPEG-TS brut (Pass-Through) ──
     if (type === 'mpegts') {
@@ -120,13 +145,22 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
         
         player.attachMediaElement(video)
         player.load()
-        
+
+        // mpegts.js emite ERROR și pentru hopuri tranzitorii de loader. Dacă
+        // redarea deja merge, verificăm întâi dacă chiar s-a oprit ceasul
+        // video-ului — altfel am acoperi un stream funcțional cu overlay.
+        let stallCheck = null
         player.on(mpegts.Events.ERROR, (errType, errDetail) => {
-          onErr(new Error(`Eroare MPEG-TS: ${errType} - ${errDetail}`))
+          const msg = `Eroare MPEG-TS: ${errType} - ${errDetail}`
+          if (!playbackDetected) return onErr(new Error(msg))
+          if (stallCheck) return
+          const before = video.currentTime
+          stallCheck = setTimeout(() => {
+            stallCheck = null
+            if (video.currentTime <= before) fail(msg)
+          }, 5000)
         })
 
-        // mpegts nu emite playing mereu la fel, depindem de event-urile video native
-        video.addEventListener('playing', markPlaying)
         tryPlay(video)
 
         // Force jump-start pentru stream-uri IPTV cu timestamp-uri murdare
@@ -142,18 +176,22 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
 
         return () => {
           clearInterval(chaseInterval)
-          clearTimeout(timer); clearLoadingTimeout()
+          if (stallCheck) clearTimeout(stallCheck)
+          clearWatchdog()
           video.removeEventListener('playing', markPlaying)
           video.removeEventListener('timeupdate', onTimeUpdate)
-          video.removeEventListener('error', onErr)
+          video.removeEventListener('loadeddata', markPlaying)
           player.destroy()
           video.removeAttribute('src'); video.load()
         }
       } else {
         // Fallback dacă MSE nu e suportat (ex. iOS)
-        setError('Acest tip de stream (MPEG-TS) nu este suportat pe dispozitivele iOS. Folosiți Windows, Android sau Mac.')
-        setState('error')
-        return
+        fail('Acest tip de stream (MPEG-TS) nu este suportat pe dispozitivele iOS. Folosiți Windows, Android sau Mac.')
+        return () => {
+          video.removeEventListener('playing', markPlaying)
+          video.removeEventListener('timeupdate', onTimeUpdate)
+          video.removeEventListener('loadeddata', markPlaying)
+        }
       }
     }
 
@@ -209,9 +247,8 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
               retryCount.current++
               hls.startLoad()
             } else {
-              clearLoadingTimeout(); hls.destroy()
-              setState('error')
-              setError('Stream indisponibil — eroare de rețea persistentă.')
+              hls.destroy()
+              fail('Stream indisponibil — eroare de rețea persistentă.')
             }
             break
 
@@ -226,23 +263,22 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
               hls.loadSource(url)
               hls.startLoad()
             } else {
-              clearLoadingTimeout(); hls.destroy()
-              setState('error')
-              setError('Eroare media persistentă — codec incompatibil.')
+              hls.destroy()
+              fail('Eroare media persistentă — codec incompatibil.')
             }
             break
 
           default:
-            clearLoadingTimeout(); hls.destroy()
-            setState('error')
-            setError('Stream indisponibil (CORS / geo-block / offline).')
+            hls.destroy()
+            fail('Stream indisponibil (CORS / geo-block / offline).')
         }
       })
 
       return () => {
-        clearLoadingTimeout()
+        clearWatchdog()
         video.removeEventListener('playing', markPlaying)
         video.removeEventListener('timeupdate', onTimeUpdate)
+        video.removeEventListener('loadeddata', markPlaying)
         hls.destroy()
       }
     }
@@ -251,25 +287,26 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url
       video.addEventListener('loadedmetadata', () => tryPlay(video), { once: true })
-      const onErr = () => {
-        clearLoadingTimeout(); setState('error')
-        setError('Stream-ul nu a putut fi redat (nativ).')
-      }
-      video.addEventListener('error', onErr)
+      const onNativeErr = () => fail('Stream-ul nu a putut fi redat (nativ).')
+      video.addEventListener('error', onNativeErr)
       return () => {
-        clearLoadingTimeout()
+        clearWatchdog()
         video.removeEventListener('playing', markPlaying)
         video.removeEventListener('timeupdate', onTimeUpdate)
-        video.removeEventListener('error', onErr)
+        video.removeEventListener('loadeddata', markPlaying)
+        video.removeEventListener('error', onNativeErr)
         video.removeAttribute('src'); video.load()
       }
     }
 
-    clearLoadingTimeout(); setState('error')
-    setError('Browserul nu suportă HLS.')
-    video.removeEventListener('playing', markPlaying)
-    video.removeEventListener('timeupdate', onTimeUpdate)
-  }, [videoRef, url])
+    fail('Browserul nu suportă HLS.')
+    return () => {
+      clearWatchdog()
+      video.removeEventListener('playing', markPlaying)
+      video.removeEventListener('timeupdate', onTimeUpdate)
+      video.removeEventListener('loadeddata', markPlaying)
+    }
+  }, [videoRef, url, type, reason])
 
   return { state, error, isMutedByPolicy, unmute }
 }

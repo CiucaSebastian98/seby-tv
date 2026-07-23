@@ -18,6 +18,17 @@ const START_TIMEOUT_MS = Number(process.env.START_TIMEOUT_MS || 15_000)
 const PLAYLIST_REFRESH_MS = Number(process.env.PLAYLIST_REFRESH_MS || 6 * 3600 * 1000)
 const MAX_SESSIONS = Number(process.env.MAX_SESSIONS || 20)
 
+// Token cerut pe rutele care consumă bandă. Identic cu VITE_STREAM_TOKEN.
+const AUTH_TOKEN = process.env.AUTH_TOKEN || 'parola123'
+// Câte pass-through-uri simultane acceptăm (MAX_SESSIONS acoperă doar ffmpeg).
+const MAX_DIRECT = Number(process.env.MAX_DIRECT || 30)
+// Inactivitate pe socket-ul upstream (se resetează la fiecare chunk primit).
+const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS || 15_000)
+const MAX_REDIRECTS = 5
+const DEFAULT_UA = process.env.DEFAULT_UA || 'VLC/3.0.18 LibVLC/3.0.18'
+// Cât așteptăm între două reîncărcări forțate ale playlist-ului (cheie necunoscută).
+const RELOAD_COOLDOWN_MS = Number(process.env.RELOAD_COOLDOWN_MS || 60_000)
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // ──────────────────────────────────────────────────────────────────────
@@ -36,9 +47,14 @@ function warn(prefix, msg) {
 // Hash determinist — IDENTIC cu keyFor din frontend (channelService.js)
 // ──────────────────────────────────────────────────────────────────────
 function keyFor(url) {
-  let h = 5381
-  for (let i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) >>> 0
-  return h.toString(36)
+  let h1 = 5381
+  let h2 = 52711
+  for (let i = 0; i < url.length; i++) {
+    const c = url.charCodeAt(i)
+    h1 = ((h1 << 5) + h1 + c) >>> 0
+    h2 = ((h2 << 5) + h2 + (c ^ 0x5f)) >>> 0
+  }
+  return h1.toString(36) + '-' + h2.toString(36)
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -78,6 +94,31 @@ async function loadPlaylist() {
   channels = map
   playlistLoadedAt = new Date()
   log('playlist', `${channels.size} canale încărcate`)
+}
+
+/**
+ * Caută canalul după cheie. Dacă lipsește, sursa s-a schimbat probabil în
+ * playlist de la ultima încărcare (URL-urile IP:port se rotesc des), așa că
+ * reîncărcăm o dată — cu cooldown, ca o cheie inventată să nu ne pună pe jar.
+ */
+let lastForcedReload = 0
+
+async function lookupChannel(key) {
+  const hit = channels.get(key)
+  if (hit) return hit
+
+  const now = Date.now()
+  if (now - lastForcedReload < RELOAD_COOLDOWN_MS) return null
+  lastForcedReload = now
+
+  log('playlist', `Cheie necunoscută (${key}) — reîncarc playlist-ul`)
+  try {
+    await loadPlaylist()
+  } catch (e) {
+    warn('playlist', `Reîncărcare eșuată: ${e.message}`)
+    return null
+  }
+  return channels.get(key) || null
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -190,7 +231,7 @@ async function createSession(key) {
  * Race-condition safe: dacă 2 cereri vin simultan, doar una creează sesiunea.
  */
 async function ensureSession(key) {
-  const ch = channels.get(key)
+  const ch = await lookupChannel(key)
   if (!ch) return null
 
   // Sesiune existentă și proces viu?
@@ -255,27 +296,39 @@ setInterval(() => {
 const app = express()
 app.disable('x-powered-by')
 
+/**
+ * Rute care consumă bandă sau expun URL-urile surselor → cer token.
+ * Excepție conștientă: segmentele `/stream/:key/:file`. hls.js le cere pe URL-uri
+ * relative, fără query, deci nu poate purta token-ul; sunt protejate implicit
+ * prin faptul că există doar cât timp rulează o sesiune pornită cu token.
+ */
+function needsToken(path) {
+  if (path.endsWith('.m3u8')) return true
+  if (path.startsWith('/direct-stream/')) return true
+  if (path.startsWith('/playlist')) return true
+  if (path.startsWith('/channels')) return true
+  if (path.startsWith('/stats')) return true
+  return false
+}
+
 // ── Middleware global ──
 app.use((req, res, next) => {
-  // Securitate bazată pe Token
-  // Player-ul cere index.m3u8?token=..., dar segmentele .ts sunt cerute FĂRĂ token de hls.js!
-  // Așa că cerem token-ul doar la inițierea stream-ului (.m3u8) sau la playlist.
-  if (req.path.endsWith('.m3u8') || req.path.startsWith('/playlist')) {
-    const token = req.query.token
-    if (token !== 'parola123') {
-      return res.status(401).send('Acces interzis: token invalid')
-    }
-  }
-
   // CORS - Lăsăm liber pentru player-ul web (deoarece e deja securizat cu token)
   res.set('Access-Control-Allow-Origin', '*')
-  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.set('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning')
   // Securitate
   res.set('X-Content-Type-Options', 'nosniff')
   res.set('X-Frame-Options', 'DENY')
-  // Preflight
+
+  // Preflight-ul se rezolvă înaintea verificării de token: browserul nu trimite
+  // credențiale pe OPTIONS, iar un 401 aici ar bloca cererea reală.
   if (req.method === 'OPTIONS') return res.status(204).end()
+
+  if (needsToken(req.path) && req.query.token !== AUTH_TOKEN) {
+    return res.status(401).send('Acces interzis: token invalid')
+  }
+
   next()
 })
 
@@ -299,6 +352,8 @@ app.get('/health', (_req, res) =>
     channels: channels.size,
     sessions: sessions.size,
     maxSessions: MAX_SESSIONS,
+    directStreams: directCount,
+    maxDirect: MAX_DIRECT,
     playlistLoadedAt,
     uptime: Math.round(process.uptime()),
   }),
@@ -317,6 +372,7 @@ app.get('/stats', (_req, res) => {
   res.json({
     channels: channels.size,
     sessions: sessionList,
+    directStreams: directCount,
     memory: process.memoryUsage(),
     uptime: Math.round(process.uptime()),
   })
@@ -331,50 +387,138 @@ app.get('/channels', (_req, res) => {
   res.json({ count: list.length, channels: list })
 })
 
-// ── Validare key (alfanumeric, max 20 chars — hash base36) ──
+// ── Validare key (base36 pe două benzi: "abc-def", max 20 chars) ──
 function isValidKey(key) {
-  return /^[a-z0-9]{1,20}$/i.test(key)
+  return /^[a-z0-9]{1,20}(-[a-z0-9]{1,20})?$/i.test(key)
+}
+
+/**
+ * Deschide fluxul upstream și rezolvă DOAR dacă sursa chiar livrează conținut.
+ * Urmărește redirect-urile (multe portaluri IPTV răspund 302 către edge) și
+ * refuză orice status care nu e 200/206 — altfel am face pipe unui corp de
+ * eroare cu `Content-Type: video/mp2t`, iar player-ul ar aștepta degeaba.
+ *
+ * @returns {Promise<{req: import('node:http').ClientRequest, res: import('node:http').IncomingMessage, url: string}>}
+ */
+function openUpstream(rawUrl, userAgent, depth = 0) {
+  return new Promise((resolve, reject) => {
+    let target
+    try {
+      target = new URL(rawUrl)
+    } catch {
+      return reject(new Error(`URL invalid: ${rawUrl}`))
+    }
+
+    // rtmp/udp/rtsp nu se pot face pipe — acelea merg pe ruta ffmpeg (/stream).
+    if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+      return reject(
+        new Error(`Protocol ${target.protocol} nu e suportat de pass-through (folosește /stream)`),
+      )
+    }
+
+    const client = target.protocol === 'https:' ? https : http
+    const upstreamReq = client.get(
+      target,
+      { headers: { 'User-Agent': userAgent || DEFAULT_UA, Accept: '*/*' } },
+      (upstreamRes) => {
+        const status = upstreamRes.statusCode || 0
+
+        if (status >= 300 && status < 400 && upstreamRes.headers.location) {
+          upstreamRes.resume() // golim corpul ca socket-ul să se elibereze
+          upstreamReq.destroy()
+          if (depth >= MAX_REDIRECTS) return reject(new Error('Prea multe redirect-uri'))
+          const next = new URL(upstreamRes.headers.location, target).toString()
+          return openUpstream(next, userAgent, depth + 1).then(resolve, reject)
+        }
+
+        if (status !== 200 && status !== 206) {
+          upstreamRes.resume()
+          upstreamReq.destroy()
+          return reject(Object.assign(new Error(`Upstream HTTP ${status}`), { status }))
+        }
+
+        resolve({ req: upstreamReq, res: upstreamRes, url: target.toString() })
+      },
+    )
+
+    // Timeout de inactivitate pe socket: acoperă atât conectarea, cât și un
+    // flux care se oprește din livrat (se resetează la fiecare chunk).
+    upstreamReq.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+      upstreamReq.destroy(new Error(`Fără date ${UPSTREAM_TIMEOUT_MS}ms`))
+    })
+    upstreamReq.on('error', reject)
+  })
 }
 
 // ── Pass-Through Proxy pentru fluxuri brute MPEG-TS (ex: IP:PORT) ──
-app.get('/direct-stream/:key', (req, res) => {
+let directCount = 0
+
+app.get('/direct-stream/:key', async (req, res) => {
   const { key } = req.params
   if (!isValidKey(key)) return res.status(400).send('Cheie invalidă')
 
-  const ch = channels.get(key)
+  if (directCount >= MAX_DIRECT) {
+    warn('proxy', `Limită de ${MAX_DIRECT} pass-through-uri atinsă, refuz ${key}`)
+    return res.status(503).send('Prea multe fluxuri active, încearcă mai târziu')
+  }
+
+  const ch = await lookupChannel(key)
   if (!ch) return res.status(404).send('Canal necunoscut')
 
-  // Setăm headerele pentru player-ul mpegts.js
+  directCount++
+  let released = false
+  const release = () => {
+    if (released) return
+    released = true
+    directCount--
+  }
+
+  let upstream
+  try {
+    upstream = await openUpstream(ch.url, ch.userAgent)
+  } catch (err) {
+    release()
+    warn('proxy', `Upstream ${key} indisponibil: ${err.message}`)
+    if (!res.headersSent) res.status(502).send(`Upstream indisponibil: ${err.message}`)
+    return
+  }
+
+  // Clientul poate să fi renunțat cât timp negociam cu sursa.
+  if (req.destroyed || res.writableEnded) {
+    upstream.req.destroy()
+    release()
+    return
+  }
+
+  log('proxy', `Pass-through ${key} -> ${upstream.url}`)
+
+  // Abia acum știm că sursa livrează — de-abia acum promitem video clientului.
   res.status(200)
   res.set('Content-Type', 'video/mp2t')
   res.set('Cache-Control', 'no-cache, no-store')
-  res.set('Access-Control-Allow-Origin', '*')
 
-  log('proxy', `Pass-through direct pentru ${key} -> ${ch.url}`)
+  upstream.res.pipe(res)
 
-  const client = ch.url.startsWith('https') ? https : http
-  const options = {
-    headers: {
-      'User-Agent': ch.userAgent || 'VLC/3.0.18 LibVLC/3.0.18',
-    },
-  }
-
-  const proxyReq = client.get(ch.url, options, (proxyRes) => {
-    // Pipe datele de la sursă către frontend
-    proxyRes.pipe(res)
+  upstream.res.on('error', (err) => {
+    warn('proxy', `Flux întrerupt la ${key}: ${err.message}`)
+    upstream.req.destroy()
+    res.end()
+    release()
   })
 
-  proxyReq.on('error', (err) => {
+  upstream.req.on('error', (err) => {
     warn('proxy', `Eroare upstream la ${key}: ${err.message}`)
-    if (!res.headersSent) res.status(502).send('Upstream error')
+    res.end()
+    release()
   })
 
-  // Când clientul închide playerul sau dă refresh, tăiem conexiunea către sursă
-  req.on('close', () => {
+  // Când clientul închide playerul sau dă refresh, tăiem conexiunea către sursă.
+  res.on('close', () => {
     log('proxy', `Client deconectat de la pass-through ${key}`)
-    proxyReq.destroy()
+    upstream.req.destroy()
+    release()
   })
-} )
+})
 
 // ── Stream: index.m3u8 ──
 app.get('/stream/:key/index.m3u8', async (req, res) => {
