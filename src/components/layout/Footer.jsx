@@ -9,11 +9,11 @@ export default function Footer() {
   return (
     <footer className="mt-16 border-t border-edge px-8 py-10 md:px-12 lg:px-16">
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent font-display text-base font-extrabold text-white">
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="grid h-14 w-14 place-items-center rounded-xl bg-accent font-display text-2xl font-extrabold text-white shadow-lg">
             ▶
           </span>
-          <span className="font-display text-xl font-extrabold tracking-tight">
+          <span className="font-display text-4xl font-extrabold tracking-tight">
             Seby <span className="text-accent">TV</span>
           </span>
         </div>
