@@ -1,8 +1,10 @@
 import { useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TopBar from '../layout/TopBar.jsx'
+import Footer from '../layout/Footer.jsx'
 import ChipsBar from './ChipsBar.jsx'
 import Hero from './Hero.jsx'
+import SearchBox from './SearchBox.jsx'
 import ChannelGrid from './ChannelGrid.jsx'
 import { useAppActions, useAppState } from '../../context/AppContext.jsx'
 import { partitionFavorites, selectVisibleChannels } from '../../services/channelService.js'
@@ -94,7 +96,7 @@ export default function BrowseView() {
   })
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen">
       <TopBar />
 
       <ChipsBar
@@ -119,6 +121,8 @@ export default function BrowseView() {
         />
       )}
 
+      <SearchBox />
+
       {ordered.length > 0 ? (
         <div className="mt-6">
           <ChannelGrid
@@ -139,6 +143,8 @@ export default function BrowseView() {
           Niciun canal găsit{filters.search ? ` pentru „${filters.search}"` : ''}.
         </p>
       )}
+
+      <Footer />
     </div>
   )
 }

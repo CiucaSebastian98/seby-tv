@@ -115,11 +115,20 @@ limita de trafic a VPS-ului înainte — și evită tunelurile cu cotă lunară 
 
 ## Rutarea fluxurilor
 
-| Sursa din M3U | Ruta | De ce |
-|---|---|---|
-| `http(s)://….m3u8`, `.mpd` | `/stream/:key/index.m3u8` | ffmpeg remuxează în HLS |
-| `http(s)://IP:PORT/…` (TS brut) | `/direct-stream/:key` | pass-through, 0% CPU |
-| `rtmp://`, `udp://`, `rtsp://` | `/stream/:key/index.m3u8` | doar ffmpeg le poate citi |
+Frontend-ul trimite **toate** sursele pe `/stream/:key/index.m3u8` (ffmpeg).
+
+Motivul e codecul audio, nu transportul: sursele DVB românești (Digi Sport &co.)
+livrează **MPEG-1 Audio Layer II (mp2)**, pe care niciun browser nu îl poate
+decoda în MSE. Simptomul e înșelător — mpegts.js demuxează corect, raportează
+`AudioSpecificConfig for mimeType: mp3`, dar redarea rămâne blocată la
+`currentTime 0`, fiindcă nu se produce niciodată audio decodat.
+
+De aceea ffmpeg rulează `-c:v copy -c:a aac`: video-ul trece neatins (fără cost),
+iar audio-ul se transcodează (~1-2% dintr-un core).
+
+`/direct-stream/:key` (pass-through, 0% CPU) rămâne implementat și funcțional,
+dar nu e folosit implicit — e util doar pentru surse despre care știi sigur că
+au audio AAC.
 
 ## Securitate
 
