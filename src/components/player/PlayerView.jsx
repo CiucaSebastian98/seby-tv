@@ -115,7 +115,7 @@ export default function PlayerView() {
         <div className="pointer-events-auto flex items-center gap-4">
           <button
             onClick={back}
-            className="rounded-full bg-black/60 px-4 py-2 text-sm font-semibold ring-1 ring-white/25 backdrop-blur transition-colors hover:bg-black/80"
+            className="shrink-0 whitespace-nowrap rounded-full bg-black/60 px-4 py-2 text-sm font-semibold ring-1 ring-white/25 backdrop-blur transition-colors hover:bg-black/80"
           >
             ← Înapoi
           </button>
@@ -135,7 +135,7 @@ export default function PlayerView() {
 
           <button
             onClick={() => toggleFavorite(channel.id)}
-            className={`ml-auto shrink-0 rounded-full px-4 py-2 text-sm font-semibold ring-1 backdrop-blur transition-colors ${
+            className={`ml-auto shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ring-1 backdrop-blur transition-colors ${
               fav
                 ? 'bg-focus text-black ring-transparent'
                 : 'bg-black/60 ring-white/25 hover:bg-black/80'
