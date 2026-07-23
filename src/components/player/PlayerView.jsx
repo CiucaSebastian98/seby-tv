@@ -25,7 +25,11 @@ export default function PlayerView() {
   const { now, next, hasEpg } = useNowNext(channel?.id)
 
   const videoRef = useRef(null)
-  const { state, error, isMutedByPolicy, unmute } = useHlsPlayer(videoRef, channel?.url || null)
+  const { state, error, isMutedByPolicy, unmute } = useHlsPlayer(
+    videoRef,
+    channel?.url || null,
+    channel?.type || 'hls'
+  )
   const [showUi, setShowUi] = useState(true)
 
   const back = () => navigate('/')

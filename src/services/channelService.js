@@ -18,9 +18,21 @@ function keyFor(url) {
  */
 function resolveStreamUrl(rawUrl) {
   const isHls = /\.m3u8(\?|$)/i.test(rawUrl)
-  if (isHls || !STREAM_PROXY) return rawUrl
-  // Adăugăm token-ul de securitate setat pe server
-  return `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8?token=parola123`
+  if (!STREAM_PROXY) return { url: rawUrl, type: isHls ? 'hls' : 'mpegts' }
+
+  if (isHls) {
+    // HLS merge prin proxy-ul clasic (ffmpeg)
+    return {
+      url: `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8?token=parola123`,
+      type: 'hls',
+    }
+  } else {
+    // MPEG-TS brut merge prin noul pass-through (0% CPU)
+    return {
+      url: `${STREAM_PROXY}/direct-stream/${keyFor(rawUrl)}?token=parola123`,
+      type: 'mpegts',
+    }
+  }
 }
 
 /**
@@ -127,7 +139,7 @@ export function buildCatalog({ playlistText, countries = [] }) {
     if (cc) usedCountries.add(cc)
     categories.forEach((g) => usedCategories.add(g))
 
-    const url = resolveStreamUrl(e.url)
+    const { url, type } = resolveStreamUrl(e.url)
 
     catalog.push({
       id,
@@ -139,8 +151,9 @@ export function buildCatalog({ playlistText, countries = [] }) {
       flag: country?.flag || '',
       categoryIds: categories,
       categoryNames: categories,
-      streams: [url],
+      streams: [{ url, type }],
       url,
+      type,
     })
   })
 

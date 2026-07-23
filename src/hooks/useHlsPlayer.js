@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import Hls from 'hls.js'
+import mpegts from 'mpegts.js'
 
 /**
- * Atașează un stream HLS la elementul <video> referit.
- *  - Chrome/Firefox/Edge: hls.js (MSE) — PRIORITAR
- *  - Safari/iOS (fără MSE): HLS nativ (video.src)
+ * Atașează un stream video la elementul <video> referit.
+ *  - tip 'hls': hls.js (Chrome) sau Nativ (Safari)
+ *  - tip 'mpegts': mpegts.js (MSE pentru pass-through proxy)
  *
  * @param {React.RefObject<HTMLVideoElement>} videoRef
  * @param {string|null} url
+ * @param {'hls'|'mpegts'} type
  * @returns {{ state, error, isMutedByPolicy, unmute }}
  */
-export function useHlsPlayer(videoRef, url) {
+export function useHlsPlayer(videoRef, url, type = 'hls') {
   const [state, setState] = useState('idle')
   const [error, setError] = useState(null)
   const [isMutedByPolicy, setIsMutedByPolicy] = useState(false)
@@ -105,6 +107,45 @@ export function useHlsPlayer(videoRef, url) {
         video.removeEventListener('timeupdate', onTimeUpdate)
         video.removeEventListener('error', onErr)
         video.removeAttribute('src'); video.load()
+      }
+    }
+
+    // ── MPEG-TS brut (Pass-Through) ──
+    if (type === 'mpegts') {
+      if (mpegts.getFeatureList().mseLivePlayback) {
+        const player = mpegts.createPlayer({
+          type: 'mse',
+          isLive: true,
+          url,
+        }, {
+          enableStashBuffer: false,
+          stashInitialSize: 128,
+        })
+        
+        player.attachMediaElement(video)
+        player.load()
+        
+        player.on(mpegts.Events.ERROR, (errType, errDetail) => {
+          onErr(new Error(`Eroare MPEG-TS: ${errType} - ${errDetail}`))
+        })
+
+        // mpegts nu emite playing mereu la fel, depindem de event-urile video native
+        video.addEventListener('playing', markPlaying)
+        tryPlay(video)
+
+        return () => {
+          clearTimeout(timer); clearLoadingTimeout()
+          video.removeEventListener('playing', markPlaying)
+          video.removeEventListener('timeupdate', onTimeUpdate)
+          video.removeEventListener('error', onErr)
+          player.destroy()
+          video.removeAttribute('src'); video.load()
+        }
+      } else {
+        // Fallback dacă MSE nu e suportat (ex. iOS)
+        setError('Acest tip de stream (MPEG-TS) nu este suportat pe dispozitivele iOS. Folosiți Windows, Android sau Mac.')
+        setState('error')
+        return
       }
     }
 

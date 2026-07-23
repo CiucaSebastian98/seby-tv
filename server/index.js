@@ -4,6 +4,8 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import http from 'node:http'
+import https from 'node:https'
 
 // ──────────────────────────────────────────────────────────────────────
 // Config (din variabile de mediu)
@@ -333,6 +335,46 @@ app.get('/channels', (_req, res) => {
 function isValidKey(key) {
   return /^[a-z0-9]{1,20}$/i.test(key)
 }
+
+// ── Pass-Through Proxy pentru fluxuri brute MPEG-TS (ex: IP:PORT) ──
+app.get('/direct-stream/:key', (req, res) => {
+  const { key } = req.params
+  if (!isValidKey(key)) return res.status(400).send('Cheie invalidă')
+
+  const ch = channels.get(key)
+  if (!ch) return res.status(404).send('Canal necunoscut')
+
+  // Setăm headerele pentru player-ul mpegts.js
+  res.status(200)
+  res.set('Content-Type', 'video/mp2t')
+  res.set('Cache-Control', 'no-cache, no-store')
+  res.set('Access-Control-Allow-Origin', '*')
+
+  log('proxy', `Pass-through direct pentru ${key} -> ${ch.url}`)
+
+  const client = ch.url.startsWith('https') ? https : http
+  const options = {
+    headers: {
+      'User-Agent': ch.userAgent || 'VLC/3.0.18 LibVLC/3.0.18',
+    },
+  }
+
+  const proxyReq = client.get(ch.url, options, (proxyRes) => {
+    // Pipe datele de la sursă către frontend
+    proxyRes.pipe(res)
+  })
+
+  proxyReq.on('error', (err) => {
+    warn('proxy', `Eroare upstream la ${key}: ${err.message}`)
+    if (!res.headersSent) res.status(502).send('Upstream error')
+  })
+
+  // Când clientul închide playerul sau dă refresh, tăiem conexiunea către sursă
+  req.on('close', () => {
+    log('proxy', `Client deconectat de la pass-through ${key}`)
+    proxyReq.destroy()
+  })
+} )
 
 // ── Stream: index.m3u8 ──
 app.get('/stream/:key/index.m3u8', async (req, res) => {
