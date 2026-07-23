@@ -126,29 +126,29 @@ async function createSession(key) {
 
   const dir = await mkdtemp(join(tmpdir(), 'sebytv-'))
 
+// ABORDARE OPTIMIZATĂ — Consum minim CPU & I/O
   const args = [
     '-hide_banner',
-    '-loglevel', 'warning',               // 'error' pierde info util; 'warning' e un compromis bun
-    '-rw_timeout', '20000000',             // 20s: nu bloca la infinit pe sursă moartă
-    // Reconnect automat (surse IPTV instabile se deconectează des)
+    '-loglevel', 'warning',
+    '-rw_timeout', '15000000',               // 15s timeout
     '-reconnect', '1',
     '-reconnect_streamed', '1',
     '-reconnect_delay_max', '5',
     ...(ch.userAgent ? ['-user_agent', ch.userAgent] : []),
     '-i', ch.url,
-    '-fflags', '+genpts+discardcorrupt',   // regen timestamps + ignoră frame-uri corupte
-    '-err_detect', 'ignore_err',           // tolerează erori din sursa IPTV
-    // Video: FĂRĂ transcodare (consum 0% CPU), dar salvat în format Fragmented MP4 (fmp4)
-    // fmp4 este nativ pentru playerele moderne și repară automat timestamp-urile și glitch-urile interlaced.
+    '-fflags', '+genpts+discardcorrupt',
+    '-err_detect', 'ignore_err',
+
+    // 1. VIDEO & AUDIO COPY (ZERO re-encodare, passthrough pur)
     '-c:v', 'copy',
-    '-c:a', 'aac', '-ac', '2', '-b:a', '128k', // audio: transcodăm la AAC
-    '-async', '1',                         // sincronizare A/V (previne drift)
+    '-c:a', 'copy',                          // Schimbat din AAC în COPY!
+
+    // 2. Opțiuni HLS eficiente
     '-f', 'hls',
-    '-hls_time', '4',                      // Timp mai mare (4s) dă șansa să prindă keyframe-uri curate din sursă
-    '-hls_list_size', '8',
-    '-hls_flags', 'delete_segments+append_list+omit_endlist', 
-    '-hls_segment_type', 'fmp4',           // MAGIC: Folosim MP4 în loc de TS
-    '-hls_segment_filename', join(dir, 'seg-%d.m4s'),
+    '-hls_time', '2',                        // Segmente de 2s pentru pornire rapidă
+    '-hls_list_size', '5',
+    '-hls_flags', 'delete_segments+append_list+omit_endlist',
+    '-hls_segment_filename', join(dir, 'seg-%d.ts'), // Treci înapoi pe clasicul TS (mult mai compatibil)
     join(dir, 'index.m3u8'),
   ]
 
@@ -222,16 +222,16 @@ async function waitForIndex(dir, proc) {
   const deadline = Date.now() + START_TIMEOUT_MS
 
   while (Date.now() < deadline) {
-    // Dacă procesul a murit deja, nu mai așteptăm
     if (proc.killed || proc.exitCode !== null) return false
 
     if (existsSync(file)) {
       try {
         const txt = await readFile(file, 'utf8')
-        if (/\.ts/.test(txt)) return true // are cel puțin un segment
-      } catch { /* fișier încă în curs de scriere */ }
+        // Reparat: Caută orice tip de segment valid
+        if (/\.ts|\.m4s|\.mp4/.test(txt)) return true
+      } catch { /* fișier în curs de scriere */ }
     }
-    await sleep(300)
+    await sleep(250)
   }
   return false
 }
