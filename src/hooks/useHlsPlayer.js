@@ -96,7 +96,9 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
       setState('error')
       setError(msg || 'Stream indisponibil. Verificați conexiunea.')
     }
-    const timer = setTimeout(() => { if (video.readyState < 3) fail('Timeout la conectarea la stream.') }, 10000)
+    // Timeout mărit la 30s. Fluxurile brute au nevoie de timp să umple buffer-ul MSE.
+    // Când timeout-ul dădea kill la 10s, Chrome raporta "CORS error" în mod fals pentru fetch-ul anulat.
+    const timer = setTimeout(() => { if (video.readyState < 3) fail('Timeout la conectarea la stream.') }, 30000)
     const onErr = (e) => { clearTimeout(timer); fail(e?.message) }
 
     // ── MPEG-TS brut (Pass-Through) ──
@@ -107,8 +109,10 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
           isLive: true,
           url,
         }, {
-          enableStashBuffer: false,
-          stashInitialSize: 128,
+          enableStashBuffer: true,     // Ajută la fluxurile cu desincronizare A/V
+          stashInitialSize: 384,       // Buffer mai mare la început
+          liveBufferLatencyChasing: true, // Sare peste gap-uri
+
           // Bypasăm pagina de warning de la Ngrok
           headers: {
             'ngrok-skip-browser-warning': '1'
