@@ -109,10 +109,9 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
           isLive: true,
           url,
         }, {
-          enableStashBuffer: true,     // Ajută la fluxurile cu desincronizare A/V
-          stashInitialSize: 384,       // Buffer mai mare la început
-          liveBufferLatencyChasing: true, // Sare peste gap-uri
-
+          enableStashBuffer: false,
+          fixAudioTimestampGap: true,
+          liveBufferLatencyChasing: true,
           // Bypasăm pagina de warning de la Ngrok
           headers: {
             'ngrok-skip-browser-warning': '1'
@@ -130,7 +129,19 @@ export function useHlsPlayer(videoRef, url, type = 'hls') {
         video.addEventListener('playing', markPlaying)
         tryPlay(video)
 
+        // Force jump-start pentru stream-uri IPTV cu timestamp-uri murdare
+        const chaseInterval = setInterval(() => {
+          if (video.buffered.length > 0 && video.readyState >= 1) {
+            const end = video.buffered.end(video.buffered.length - 1)
+            // Dacă playerul a rămas blocat la 0 și s-au descărcat date, forțăm seek
+            if (video.currentTime === 0 && end > 0.5) {
+              video.currentTime = end - 0.2
+            }
+          }
+        }, 1000)
+
         return () => {
+          clearInterval(chaseInterval)
           clearTimeout(timer); clearLoadingTimeout()
           video.removeEventListener('playing', markPlaying)
           video.removeEventListener('timeupdate', onTimeUpdate)
