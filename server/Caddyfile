@@ -1,6 +1,8 @@
-# Înlocuiește cu domeniul tău real (DNS-ul trebuie să pointeze la IP-ul VPS-ului)
-stream.domeniul-tau.ro {
-	# Rate limiting: max 20 req/s per IP
+# Domeniul vine din .env (STREAM_DOMAIN). DNS-ul lui trebuie să pointeze la
+# IP-ul VPS-ului ÎNAINTE de primul start: Caddy cere certificatul de la Let's
+# Encrypt la boot și eșuează dacă validarea HTTP nu trece.
+{$STREAM_DOMAIN} {
+	# Rate limiting: max 20 req/s per IP (plugin extern — vezi Caddy.Dockerfile)
 	rate_limit {
 		zone stream_limit {
 			key    {remote_host}
@@ -9,8 +11,12 @@ stream.domeniul-tau.ro {
 		}
 	}
 
-	# Reverse proxy către container-ul seby-tv-proxy
-	reverse_proxy proxy:8080
+	# Reverse proxy către container-ul seby-tv-proxy.
+	# flush_interval -1 = octeții pleacă imediat, fără buffering — obligatoriu
+	# pentru pass-through-ul MPEG-TS, care e un răspuns fără sfârșit.
+	reverse_proxy proxy:8080 {
+		flush_interval -1
+	}
 
 	# Headere de securitate
 	header {

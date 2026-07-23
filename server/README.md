@@ -28,36 +28,64 @@ brew install ffmpeg
 sudo apt install ffmpeg
 ```
 
-## Rulare pe VPS (Docker)
+## Rulare pe VPS (Docker + Caddy)
+
+Stiva pornește două containere: `proxy` (Node + ffmpeg, vizibil doar intern) și
+`caddy` (HTTPS automat via Let's Encrypt, publicat pe 80/443).
+
+**1. DNS întâi.** Un record A (și AAAA dacă ai IPv6) pentru `STREAM_DOMAIN` către
+IP-ul VPS-ului. Caddy cere certificatul la primul boot; fără DNS propagat,
+validarea ACME eșuează și rămâi fără HTTPS.
+
+**2. Configurare:**
 
 ```bash
 cd server
-docker compose up -d --build
-# verificare:
-curl http://localhost:8080/health
+cp .env.example .env
+# completează STREAM_DOMAIN și generează token-ul:
+openssl rand -hex 24
 ```
 
-Pune-l în spatele unui reverse-proxy (Caddy/Nginx) cu **HTTPS** — dacă frontend-ul e pe
-`https`, proxy-ul TREBUIE să fie tot pe `https` (altfel mixed-content). Exemplu Caddy:
+**3. Firewall** — porturile 80 și 443 deschise; 8080 NU trebuie expus public
+(compose îl ține în rețeaua internă Docker).
 
+**4. Pornire:**
+
+```bash
+docker compose up -d --build      # prima dată compilează Caddy cu plugin-ul rate_limit
+docker compose logs -f caddy      # urmărește obținerea certificatului
+curl https://STREAM_DOMAIN/health
 ```
-stream.domeniul-tau.ro {
-    reverse_proxy localhost:8080
-}
-```
+
+Imaginea Caddy se construiește din `Caddy.Dockerfile`, fiindcă directiva
+`rate_limit` e un modul extern — imaginea oficială `caddy:2` ar refuza să
+pornească cu acest Caddyfile.
 
 ## Cum îl leagă frontend-ul
 
-În `tv-online/.env` setează baza proxy-ului:
+Setează pe Vercel (Settings → Environment Variables) sau în `tv-online/.env`:
 
 ```
 VITE_STREAM_PROXY=https://stream.domeniul-tau.ro
+VITE_STREAM_TOKEN=<exact AUTH_TOKEN din server/.env>
 ```
 
-Frontend-ul rescrie automat DOAR canalele non-HLS (TS) către
-`${VITE_STREAM_PROXY}/stream/<key>/index.m3u8`. `<key>` e un hash al URL-ului sursă,
-calculat identic pe ambele părți (`keyFor`). Fără variabilă, canalele TS rămân
-neredabile (mesaj clar în player).
+Variabilele `VITE_*` sunt inserate **la build**, deci după ce le schimbi trebuie
+redeploy — nu e destul să repornești. Dacă token-ul diferă de `AUTH_TOKEN`,
+proxy-ul răspunde `401` la fiecare canal.
+
+Frontend-ul rutează automat: HLS/DASH și `rtmp/udp/rtsp` către
+`${VITE_STREAM_PROXY}/stream/<key>/index.m3u8` (ffmpeg), iar TS-ul brut pe
+`http(s)://IP:PORT` către `${VITE_STREAM_PROXY}/direct-stream/<key>`
+(pass-through). `<key>` e un hash al URL-ului sursă, calculat identic pe ambele
+părți (`keyFor`). Fără `VITE_STREAM_PROXY`, canalele care au nevoie de proxy
+rămân neredabile, cu mesaj explicit în player.
+
+## Trafic
+
+Un canal HD consumă ~1 MB/s, adică **~3,7 GB pe oră de vizionare**. Verifică
+limita de trafic a VPS-ului înainte — și evită tunelurile cu cotă lunară mică
+(ngrok free = 1 GB/lună ≈ 16 minute de TV).
 
 ## Endpoint-uri API
 

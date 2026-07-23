@@ -3,31 +3,46 @@ services:
     build: .
     image: seby-tv-proxy
     container_name: seby-tv-proxy
-    # Portul 8080 e vizibil DOAR pentru ngrok în rețeaua Docker internă
+    # 8080 e vizibil DOAR pentru Caddy, în rețeaua internă Docker.
+    # Nu publicăm portul pe host: tot traficul intră prin Caddy, cu HTTPS.
     expose:
       - '8080'
     environment:
       - PORT=8080
-      - PLAYLIST_URL=https://iptv-org.github.io/iptv/languages/ron.m3u
+      - PLAYLIST_URL=${PLAYLIST_URL:-https://iptv-org.github.io/iptv/languages/ron.m3u}
       - IDLE_MS=30000
       - START_TIMEOUT_MS=15000
-      - MAX_SESSIONS=20
+      - MAX_SESSIONS=${MAX_SESSIONS:-20}
+      - MAX_DIRECT=${MAX_DIRECT:-30}
+      - UPSTREAM_TIMEOUT_MS=15000
       - PLAYLIST_REFRESH_MS=21600000
+      # Fără default intenționat: compose refuză să pornească dacă lipsește
+      # din .env, ca să nu ajungă „parola123" pe un server public.
+      - AUTH_TOKEN=${AUTH_TOKEN:?AUTH_TOKEN lipsește din server/.env}
     restart: unless-stopped
     tmpfs:
+      # Segmentele HLS trăiesc în RAM: fără uzură pe disc, curățare la restart.
       - /tmp
 
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: seby-tv-ngrok
+  caddy:
+    build:
+      context: .
+      dockerfile: Caddy.Dockerfile
+    image: seby-tv-caddy
+    container_name: seby-tv-caddy
     restart: unless-stopped
+    ports:
+      - '80:80'   # necesar pentru validarea ACME (Let's Encrypt)
+      - '443:443'
     environment:
-      # Token-ul tău de pe contul ngrok
-      - NGROK_AUTHTOKEN=3Gs2gM2xKel5D6o3X2bY0Z29BN2_83m6NnudEeVTW7GqddCqu
-    # Comanda care expune proxy:8080 pe domeniul tău
-    command:
-      - "http"
-      - "proxy:8080"
-      - "--url=charging-impart-musket.ngrok-free.dev"
+      - STREAM_DOMAIN=${STREAM_DOMAIN:?STREAM_DOMAIN lipsește din server/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data     # certificatele — pierderea lor = rate limit la Let's Encrypt
+      - caddy_config:/config
     depends_on:
       - proxy
+
+volumes:
+  caddy_data:
+  caddy_config:
