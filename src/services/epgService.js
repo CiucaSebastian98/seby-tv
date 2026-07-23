@@ -25,20 +25,23 @@ function formatTz(tz) {
   return `${tz.slice(0, 3)}:${tz.slice(3)}` // +0200 -> +02:00
 }
 
-/** Descarcă text, decomprimând gzip dacă e cazul (.gz sau content-encoding). */
-async function fetchXmltvText(url) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`EPG: ${res.status} ${res.statusText}`)
-
-  const isGzip =
-    url.endsWith('.gz') ||
-    (res.headers.get('content-type') || '').includes('gzip')
-
-  if (isGzip && typeof DecompressionStream !== 'undefined' && res.body) {
-    const stream = res.body.pipeThrough(new DecompressionStream('gzip'))
-    return new Response(stream).text()
+/**
+ * Formatul compact servit de proxy (`/epg`): deja potrivit cu tvg-id-urile din
+ * playlist și redus la fereastra utilă. Convertim doar datele în obiecte Date.
+ */
+function fromProxyJson(payload) {
+  const byChannel = {}
+  for (const [id, list] of Object.entries(payload.byChannel || {})) {
+    byChannel[id] = list
+      .map((p) => ({
+        start: new Date(p.s),
+        stop: p.e ? new Date(p.e) : null,
+        title: p.t || '',
+        desc: p.d || '',
+      }))
+      .filter((p) => !Number.isNaN(p.start.getTime()))
   }
-  return res.text()
+  return { byChannel }
 }
 
 /**
@@ -47,7 +50,21 @@ async function fetchXmltvText(url) {
 export async function fetchEpg(url) {
   if (!url) return { byChannel: {} }
 
-  const text = await fetchXmltvText(url)
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`EPG: ${res.status} ${res.statusText}`)
+
+  // Proxy-ul propriu răspunde JSON; orice altă sursă e XMLTV (eventual gzip).
+  const ctype = res.headers.get('content-type') || ''
+  if (ctype.includes('application/json')) {
+    return fromProxyJson(await res.json())
+  }
+
+  const isGzip = url.endsWith('.gz') || ctype.includes('gzip')
+  const text =
+    isGzip && typeof DecompressionStream !== 'undefined' && res.body
+      ? await new Response(res.body.pipeThrough(new DecompressionStream('gzip'))).text()
+      : await res.text()
+
   const doc = new DOMParser().parseFromString(text, 'application/xml')
 
   if (doc.querySelector('parsererror')) {

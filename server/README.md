@@ -112,6 +112,23 @@ limita de trafic a VPS-ului înainte — și evită tunelurile cu cotă lunară 
 | `MAX_DIRECT` | 30 | număr maxim de pass-through-uri MPEG-TS simultane |
 | `UPSTREAM_TIMEOUT_MS` | 15000 | inactivitate acceptată pe socket-ul sursei (ms) |
 | `RELOAD_COOLDOWN_MS` | 60000 | cooldown la reîncărcarea playlist-ului pe cheie necunoscută |
+| `EPG_SOURCE_URL` | `…epg_ripper_RO1.xml.gz` | sursa XMLTV pentru programul TV |
+| `EPG_TTL_MS` | 10800000 | cât timp e valid EPG-ul în cache (3h) |
+| `EPG_WINDOW_H` | 30 | câte ore de program păstrăm în viitor |
+
+## Program TV (`/epg`)
+
+Sursa XMLTV are ~54 MB decomprimat, ~36.000 de programe, și **nu trimite CORS** —
+browserul nu o poate lua direct. Serverul o descarcă, o potrivește cu canalele
+din playlist și o reduce la ~400 KB de JSON, cu cache de 3 ore (prima cerere
+construiește indexul, următoarele răspund în ~2 ms).
+
+Potrivirea canalelor e partea delicată: playlist-ul scrie `Antena1.ro@SD`, XMLTV-ul
+scrie `Antena.1.ro`. Normalizăm ambele (litere mici, doar alfanumerice, fără
+sufixul `@FEED`) și încercăm și potrivirea după numele afișat. Acoperirea reală e
+**67 din 147 de canale** — restul sunt televiziuni locale mici, care lipsesc din
+sursă. Cheile din răspuns sunt exact `tvg-id`-urile din playlist, deci se
+potrivesc direct cu `channel.id` din catalogul frontend-ului.
 
 ## Rutarea fluxurilor
 

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import http from 'node:http'
 import https from 'node:https'
+import { buildEpgIndex, fetchXmltv } from './epg.js'
 
 // ──────────────────────────────────────────────────────────────────────
 // Config (din variabile de mediu)
@@ -28,6 +29,12 @@ const MAX_REDIRECTS = 5
 const DEFAULT_UA = process.env.DEFAULT_UA || 'VLC/3.0.18 LibVLC/3.0.18'
 // Cât așteptăm între două reîncărcări forțate ale playlist-ului (cheie necunoscută).
 const RELOAD_COOLDOWN_MS = Number(process.env.RELOAD_COOLDOWN_MS || 60_000)
+
+// EPG (program TV). Sursa e XMLTV, opțional gzip.
+const EPG_SOURCE_URL =
+  process.env.EPG_SOURCE_URL || 'https://epgshare01.online/epgshare01/epg_ripper_RO1.xml.gz'
+const EPG_TTL_MS = Number(process.env.EPG_TTL_MS || 3 * 3600 * 1000)
+const EPG_WINDOW_H = Number(process.env.EPG_WINDOW_H || 30)
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -61,6 +68,8 @@ function keyFor(url) {
 // Playlist: allowlist de canale (key → { url, userAgent })
 // ──────────────────────────────────────────────────────────────────────
 let channels = new Map()
+/** @type {Array<{tvgId: string, name: string}>} — pentru potrivirea cu EPG-ul */
+let playlistMeta = []
 let playlistLoadedAt = null
 
 async function loadPlaylist() {
@@ -70,7 +79,9 @@ async function loadPlaylist() {
   const text = await res.text()
 
   const map = new Map()
+  const meta = []
   let pendingUa = null
+  let pendingMeta = null
 
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim()
@@ -80,6 +91,10 @@ async function loadPlaylist() {
       // Resetăm user-agent per intrare (se aplică doar la URL-ul imediat următor)
       const m = line.match(/http-user-agent="([^"]*)"/i)
       pendingUa = m ? m[1] : null
+      pendingMeta = {
+        tvgId: (line.match(/tvg-id="([^"]*)"/i) || [])[1] || '',
+        name: line.slice(line.lastIndexOf(',') + 1).trim(),
+      }
     } else if (line.startsWith('#EXTVLCOPT:http-user-agent=')) {
       pendingUa = line.slice('#EXTVLCOPT:http-user-agent='.length).trim()
     } else if (line.startsWith('#')) {
@@ -87,11 +102,14 @@ async function loadPlaylist() {
     } else {
       // Linia e un URL
       map.set(keyFor(line), { url: line, userAgent: pendingUa })
+      if (pendingMeta?.tvgId) meta.push(pendingMeta)
       pendingUa = null
+      pendingMeta = null
     }
   }
 
   channels = map
+  playlistMeta = meta
   playlistLoadedAt = new Date()
   log('playlist', `${channels.size} canale încărcate`)
 }
@@ -316,6 +334,7 @@ function needsToken(path) {
   if (path.startsWith('/playlist')) return true
   if (path.startsWith('/channels')) return true
   if (path.startsWith('/stats')) return true
+  if (path.startsWith('/epg')) return true
   return false
 }
 
@@ -393,6 +412,62 @@ app.get('/channels', (_req, res) => {
     list.push({ key, url: ch.url })
   }
   res.json({ count: list.length, channels: list })
+})
+
+// ──────────────────────────────────────────────────────────────────────
+// EPG — descărcat, potrivit cu playlist-ul și redus la JSON compact
+// ──────────────────────────────────────────────────────────────────────
+let epgCache = null // { builtAt, byChannel, stats }
+let epgInFlight = null
+
+async function buildEpg() {
+  log('epg', `Descarc ${EPG_SOURCE_URL}…`)
+  const xml = await fetchXmltv(EPG_SOURCE_URL)
+  const now = Date.now()
+  const { byChannel, stats } = buildEpgIndex(xml, playlistMeta, {
+    fromMs: now - 2 * 3600_000,
+    toMs: now + EPG_WINDOW_H * 3600_000,
+  })
+  epgCache = { builtAt: new Date(), byChannel, stats }
+  log(
+    'epg',
+    `${stats.matchedChannels}/${stats.playlistChannels} canale potrivite, ${stats.programmes} programe`,
+  )
+  return epgCache
+}
+
+/** Construiește la cerere, cu un singur download în paralel și cache pe EPG_TTL_MS. */
+async function getEpg() {
+  const fresh = epgCache && Date.now() - epgCache.builtAt.getTime() < EPG_TTL_MS
+  if (fresh) return epgCache
+  if (epgInFlight) return epgInFlight
+
+  epgInFlight = buildEpg()
+    .catch((e) => {
+      warn('epg', `Eșec: ${e.message}`)
+      return epgCache // servim ce avem, chiar învechit, dacă există
+    })
+    .finally(() => {
+      epgInFlight = null
+    })
+  return epgInFlight
+}
+
+app.get('/epg', async (_req, res) => {
+  try {
+    const epg = await getEpg()
+    if (!epg) return res.status(503).json({ error: 'EPG indisponibil' })
+
+    res.set('Cache-Control', 'public, max-age=1800')
+    res.json({
+      builtAt: epg.builtAt,
+      stats: epg.stats,
+      byChannel: epg.byChannel,
+    })
+  } catch (err) {
+    warn('epg', `Eroare: ${err.message}`)
+    res.status(500).json({ error: 'Eroare internă' })
+  }
 })
 
 // ── Validare key (base36 pe două benzi: "abc-def", max 20 chars) ──
