@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Hls from 'hls.js'
 import mpegts from 'mpegts.js'
+import { STREAM_PROXY } from '../constants.js'
 
 /**
  * Cât așteptăm PRIMA redare înainte de a declara stream-ul mort. Un singur
@@ -17,6 +18,26 @@ const UNSUPPORTED_MESSAGES = {
   protocol:
     'Protocol nesuportat de browser (rtmp/udp/rtsp). E nevoie de proxy (VITE_STREAM_PROXY), care îl remuxează cu ffmpeg.',
 }
+
+/**
+ * `/health` e singura rută fără token și cu CORS deschis. Dacă nici ea nu
+ * răspunde, problema nu e sursa TV, ci proxy-ul: oprit, tunel căzut sau un
+ * intermediar (ex. ngrok peste limita de trafic) care înlocuiește răspunsul cu
+ * o pagină de eroare fără headere CORS. Distincția asta scutește ore de
+ * debugging pe „NetworkError" din player.
+ */
+async function proxyIsReachable() {
+  if (!STREAM_PROXY) return null
+  try {
+    const res = await fetch(`${STREAM_PROXY}/health`, { cache: 'no-store' })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+const PROXY_DOWN_MESSAGE =
+  'Proxy-ul de stream nu răspunde — server oprit, tunel căzut sau limită de trafic atinsă. Restul canalelor prin proxy vor da aceeași eroare.'
 
 /**
  * Atașează un stream video la elementul <video> referit.
@@ -36,6 +57,9 @@ export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
   const [isMutedByPolicy, setIsMutedByPolicy] = useState(false)
   const retryCount = useRef(0)
   const playAttempted = useRef(false)
+  // Identifică rularea curentă a efectului, ca un diagnostic asincron întârziat
+  // să nu suprascrie eroarea altui canal.
+  const runRef = useRef(0)
 
   /** Încearcă play — dacă Chrome blochează, pornește muted. */
   function tryPlay(video) {
@@ -64,6 +88,9 @@ export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
   }
 
   useEffect(() => {
+    const run = ++runRef.current
+    const isCurrent = () => runRef.current === run
+
     const video = videoRef.current
     if (!video || !url) {
       setState('idle')
@@ -108,11 +135,21 @@ export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
       if (watchdog) { clearTimeout(watchdog); watchdog = null }
     }
 
-    /** Eroare fatală: oprește watchdog-ul și afișează overlay-ul. */
+    /**
+     * Eroare fatală: oprește watchdog-ul și afișează overlay-ul. Dacă fluxul
+     * trecea prin proxy, verificăm în fundal dacă proxy-ul e viu și rafinăm
+     * mesajul — „NetworkError" nu spune nimic utile despre cine a picat.
+     */
     function fail(msg) {
       clearWatchdog()
       setState('error')
       setError(msg || 'Stream indisponibil. Verificați conexiunea.')
+
+      if (STREAM_PROXY && url.startsWith(STREAM_PROXY)) {
+        proxyIsReachable().then((reachable) => {
+          if (reachable === false && isCurrent()) setError(PROXY_DOWN_MESSAGE)
+        })
+      }
     }
 
     video.addEventListener('playing', markPlaying)
