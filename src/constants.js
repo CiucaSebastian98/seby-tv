@@ -9,7 +9,13 @@ export const EPG_URL = import.meta.env.VITE_EPG_URL || ''
 
 // Baza proxy-ului ffmpeg (server/). Goală => canalele TS brute rămân neredabile.
 // Ex: https://stream.domeniul-tau.ro
-export const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || '').replace(/\/$/, '')
+const RAW_PROXY = (import.meta.env.VITE_STREAM_PROXY || '').trim().replace(/\/+$/, '')
+
+// Fără schemă, `${STREAM_PROXY}/stream/…` devine o cale RELATIVĂ, iar cererile
+// pleacă spre propriul domeniu (care răspunde cu index.html, deci player-ul
+// așteaptă la infinit). Completăm https:// dacă lipsește.
+export const STREAM_PROXY =
+  RAW_PROXY && !/^https?:\/\//i.test(RAW_PROXY) ? `https://${RAW_PROXY}` : RAW_PROXY
 
 // Token cerut de proxy. Trebuie să fie identic cu AUTH_TOKEN din server/.env.
 // Notă: e un secret „de client" — vizibil în bundle. Îl folosim ca să nu lăsăm

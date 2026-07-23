@@ -25,31 +25,26 @@ const IS_HTTPS_PAGE =
   typeof window !== 'undefined' && window.location?.protocol === 'https:'
 
 /**
- * Rutare explicită, pe schemă + extensie (nu „tot ce nu e .m3u8 e MPEG-TS"):
+ * Cu proxy configurat, TOATE sursele merg prin ffmpeg (`/stream`).
  *
- *   http(s) + .m3u8 / .mpd  → ffmpeg (/stream)        — remux în HLS
- *   http(s) + altceva       → pass-through (/direct-stream) — TS brut, 0% CPU
- *   rtmp/udp/rtsp/…         → ffmpeg (/stream)        — singurul care le poate citi
+ * Pass-through-ul (`/direct-stream`) e mai ieftin — 0% CPU — dar nu poate
+ * schimba codecurile, iar sursele DVB românești livrează audio MPEG-1 Layer II
+ * (mp2), pe care browserele nu îl pot decoda în MSE: fluxul se demuxează, dar
+ * redarea rămâne blocată la 0. Ruta ffmpeg copiază video-ul neatins și
+ * transcodează doar audio-ul în AAC. Endpoint-ul de pass-through rămâne
+ * disponibil pe server pentru surse despre care știi sigur că au audio AAC.
  *
- * Fără proxy configurat se poate reda doar HLS servit peste un protocol
- * compatibil cu pagina; restul primesc `type: 'unsupported'` + un motiv, ca
- * player-ul să explice concret de ce nu merge.
+ * Fără proxy se poate reda doar HLS servit peste un protocol compatibil cu
+ * pagina; restul primesc `type: 'unsupported'` + un motiv, ca player-ul să
+ * explice concret de ce nu merge.
  */
 function resolveStreamUrl(rawUrl) {
   const isHls = /\.m3u8(\?|$)/i.test(rawUrl)
-  const isDash = /\.mpd(\?|$)/i.test(rawUrl)
   const isHttp = /^https?:\/\//i.test(rawUrl)
 
   if (STREAM_PROXY) {
-    const key = keyFor(rawUrl)
-    if (isHttp && !isHls && !isDash) {
-      return {
-        url: `${STREAM_PROXY}/direct-stream/${key}?token=${STREAM_TOKEN}`,
-        type: 'mpegts',
-      }
-    }
     return {
-      url: `${STREAM_PROXY}/stream/${key}/index.m3u8?token=${STREAM_TOKEN}`,
+      url: `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8?token=${STREAM_TOKEN}`,
       type: 'hls',
     }
   }

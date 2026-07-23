@@ -182,9 +182,17 @@ async function createSession(key) {
     '-fflags', '+genpts+discardcorrupt',
     '-err_detect', 'ignore_err',
 
-    // 1. VIDEO & AUDIO COPY (ZERO re-encodare, passthrough pur)
+    // 1. VIDEO COPY (zero re-encodare) + AUDIO transcodat în AAC.
+    //
+    // Audio-ul NU poate rămâne `copy`: sursele DVB românești (Digi Sport &co.)
+    // livrează MPEG-1 Audio Layer II (mp2), pe care niciun browser nu îl poate
+    // decoda în MSE. Rezultatul e un flux care se demuxează corect, dar rămâne
+    // blocat la currentTime 0, fiindcă nu se produce niciodată audio decodat.
+    // Encodarea audio costă ~1-2% dintr-un core; video-ul rămâne intact.
     '-c:v', 'copy',
-    '-c:a', 'copy',                          // Schimbat din AAC în COPY!
+    '-c:a', 'aac',
+    '-b:a', '128k',
+    '-ac', '2',
 
     // 2. Opțiuni HLS eficiente
     '-f', 'hls',
