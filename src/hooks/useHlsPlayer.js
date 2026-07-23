@@ -49,14 +49,20 @@ const PROXY_DOWN_MESSAGE =
  * @param {string|null} url
  * @param {'hls'|'mpegts'|'unsupported'} type
  * @param {string} [reason] motivul pentru type === 'unsupported'
+ * @param {string} [proxyUrl] variantă prin proxy, încercată dacă `url` eșuează
  * @returns {{ state, error, isMutedByPolicy, unmute }}
  */
-export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
+export function useHlsPlayer(videoRef, url, type = 'hls', reason = '', proxyUrl = '') {
   const [state, setState] = useState('idle')
   const [error, setError] = useState(null)
   const [isMutedByPolicy, setIsMutedByPolicy] = useState(false)
   const retryCount = useRef(0)
   const playAttempted = useRef(false)
+
+  // Sursa efectiv redată. Începe cu `url`; dacă redarea directă eșuează (sursa
+  // nu trimite CORS, e blocată etc.) comutăm o singură dată pe `proxyUrl`.
+  const [activeUrl, setActiveUrl] = useState(url)
+  useEffect(() => setActiveUrl(url), [url])
   // Identifică rularea curentă a efectului, ca un diagnostic asincron întârziat
   // să nu suprascrie eroarea altui canal.
   const runRef = useRef(0)
@@ -92,6 +98,7 @@ export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
     const isCurrent = () => runRef.current === run
 
     const video = videoRef.current
+    const url = activeUrl
     if (!video || !url) {
       setState('idle')
       setError(null)
@@ -142,6 +149,16 @@ export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
      */
     function fail(msg) {
       clearWatchdog()
+
+      // Redarea directă a eșuat, dar există varianta prin proxy — o încercăm în
+      // loc să arătăm eroarea. Acoperă sursele care nu trimit CORS.
+      if (proxyUrl && url !== proxyUrl) {
+        setState('loading')
+        setError(null)
+        setActiveUrl(proxyUrl)
+        return
+      }
+
       setState('error')
       setError(msg || 'Stream indisponibil. Verificați conexiunea.')
 
@@ -343,7 +360,7 @@ export function useHlsPlayer(videoRef, url, type = 'hls', reason = '') {
       video.removeEventListener('timeupdate', onTimeUpdate)
       video.removeEventListener('loadeddata', markPlaying)
     }
-  }, [videoRef, url, type, reason])
+  }, [videoRef, activeUrl, type, reason, proxyUrl])
 
   return { state, error, isMutedByPolicy, unmute }
 }

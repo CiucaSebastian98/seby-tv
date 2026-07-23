@@ -30,6 +30,7 @@ export default function PlayerView() {
     channel?.url || null,
     channel?.type || 'hls',
     channel?.reason || '',
+    channel?.proxyUrl || '',
   )
   const [showUi, setShowUi] = useState(true)
 

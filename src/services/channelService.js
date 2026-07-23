@@ -24,15 +24,27 @@ function keyFor(url) {
 const IS_HTTPS_PAGE =
   typeof window !== 'undefined' && window.location?.protocol === 'https:'
 
+/** URL-ul aceleiași surse, servit prin ffmpeg de pe proxy. */
+function proxied(rawUrl) {
+  return `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8?token=${STREAM_TOKEN}`
+}
+
 /**
- * Cu proxy configurat, TOATE sursele merg prin ffmpeg (`/stream`).
+ * Rutarea, cu proxy configurat:
  *
- * Pass-through-ul (`/direct-stream`) e mai ieftin — 0% CPU — dar nu poate
- * schimba codecurile, iar sursele DVB românești livrează audio MPEG-1 Layer II
- * (mp2), pe care browserele nu îl pot decoda în MSE: fluxul se demuxează, dar
- * redarea rămâne blocată la 0. Ruta ffmpeg copiază video-ul neatins și
- * transcodează doar audio-ul în AAC. Endpoint-ul de pass-through rămâne
- * disponibil pe server pentru surse despre care știi sigur că au audio AAC.
+ *   https + .m3u8  → DIRECT din browser, cu proxy-ul doar ca rezervă
+ *   restul          → proxy (ffmpeg)
+ *
+ * HLS peste https se redă direct fiindcă 115 din cele 128 de surse din playlist
+ * trimit `Access-Control-Allow-Origin` — nu are rost să ardem CPU și bandă pe
+ * server pentru ele. Cele ~4 surse vii fără CORS ar pica, așa că trimitem și
+ * `proxyUrl`: player-ul comută pe proxy dacă redarea directă eșuează.
+ *
+ * Restul merg obligatoriu prin ffmpeg:
+ *   - IP:port (TS brut) → audio MPEG-1 Layer II, pe care browserele nu îl pot
+ *     decoda în MSE; ffmpeg copiază video-ul și transcodează doar audio în AAC
+ *   - http:// → mixed content, blocat de browser pe o pagină https
+ *   - rtmp/udp/rtsp/DASH → browserul nu le poate citi deloc
  *
  * Fără proxy se poate reda doar HLS servit peste un protocol compatibil cu
  * pagina; restul primesc `type: 'unsupported'` + un motiv, ca player-ul să
@@ -41,12 +53,13 @@ const IS_HTTPS_PAGE =
 function resolveStreamUrl(rawUrl) {
   const isHls = /\.m3u8(\?|$)/i.test(rawUrl)
   const isHttp = /^https?:\/\//i.test(rawUrl)
+  const isHttps = /^https:\/\//i.test(rawUrl)
 
   if (STREAM_PROXY) {
-    return {
-      url: `${STREAM_PROXY}/stream/${keyFor(rawUrl)}/index.m3u8?token=${STREAM_TOKEN}`,
-      type: 'hls',
+    if (isHls && isHttps) {
+      return { url: rawUrl, type: 'hls', proxyUrl: proxied(rawUrl) }
     }
+    return { url: proxied(rawUrl), type: 'hls' }
   }
 
   if (!isHttp) return { url: rawUrl, type: 'unsupported', reason: 'protocol' }
@@ -161,7 +174,7 @@ export function buildCatalog({ playlistText, countries = [] }) {
     if (cc) usedCountries.add(cc)
     categories.forEach((g) => usedCategories.add(g))
 
-    const { url, type, reason } = resolveStreamUrl(e.url)
+    const { url, type, reason, proxyUrl } = resolveStreamUrl(e.url)
 
     catalog.push({
       id,
@@ -177,6 +190,7 @@ export function buildCatalog({ playlistText, countries = [] }) {
       url,
       type,
       reason: reason || '',
+      proxyUrl: proxyUrl || '',
       sourceUrl: e.url,
     })
   })
