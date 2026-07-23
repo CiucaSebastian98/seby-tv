@@ -138,22 +138,17 @@ async function createSession(key) {
     '-i', ch.url,
     '-fflags', '+genpts+discardcorrupt',   // regen timestamps + ignoră frame-uri corupte
     '-err_detect', 'ignore_err',           // tolerează erori din sursa IPTV
-    // Video: Transcodare + De-interlacing (yadif) + profil ultrafast pentru a salva CPU pe VPS
-    '-c:v', 'libx264',
-    '-preset', 'veryfast',                 // Compromis excelent între calitate și viteza CPU-ului
-    '-vf', 'yadif=0:-1:0',                 // Filtrul magic care scapă de glitch-urile și frame-urile intercalate
-    '-crf', '25',                          // Calitatea (mai mic = mai bun, dar consumă mai multă bandă. 25 e ok)
-    '-maxrate', '3M', '-bufsize', '6M',    // Limităm la max 3 Mbps ca să nu sacadeze pe net slab
-    '-profile:v', 'main', '-level', '4.0', // Compatibilitate maximă cu iOS și Smart TV
+    // Video: FĂRĂ transcodare (consum 0% CPU), dar salvat în format Fragmented MP4 (fmp4)
+    // fmp4 este nativ pentru playerele moderne și repară automat timestamp-urile și glitch-urile interlaced.
+    '-c:v', 'copy',
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k', // audio: transcodăm la AAC
     '-async', '1',                         // sincronizare A/V (previne drift)
     '-f', 'hls',
     '-hls_time', '4',                      // Timp mai mare (4s) dă șansa să prindă keyframe-uri curate din sursă
     '-hls_list_size', '8',
-    '-hls_flags', 'delete_segments+append_list+omit_endlist', // Am scos independent_segments care strică playerele native
-    '-hls_segment_type', 'mpegts',
-    '-mpegts_flags', '+resend_headers',    // CRUCIAL: headere PAT/PMT în fiecare segment
-    '-hls_segment_filename', join(dir, 'seg-%d.ts'),
+    '-hls_flags', 'delete_segments+append_list+omit_endlist', 
+    '-hls_segment_type', 'fmp4',           // MAGIC: Folosim MP4 în loc de TS
+    '-hls_segment_filename', join(dir, 'seg-%d.m4s'),
     join(dir, 'index.m3u8'),
   ]
 
@@ -368,7 +363,7 @@ app.get('/stream/:key/index.m3u8', async (req, res) => {
     }
 
     // Verificăm că mai are segmente (ffmpeg n-a murit între timp)
-    if (!content || !content.includes('.ts')) {
+    if (!content || (!content.includes('.ts') && !content.includes('.m4s') && !content.includes('.mp4'))) {
       return res.status(404).send('Playlist HLS gol (ffmpeg s-a oprit)')
     }
 
@@ -392,7 +387,7 @@ app.get('/stream/:key/:file', async (req, res) => {
   if (!/^[\w.-]+$/.test(file)) return res.status(400).send('Nume fișier invalid')
 
   // Extensii permise
-  if (!file.endsWith('.ts') && !file.endsWith('.m3u8')) {
+  if (!file.endsWith('.ts') && !file.endsWith('.m3u8') && !file.endsWith('.m4s') && !file.endsWith('.mp4')) {
     return res.status(403).send('Extensie nepermisă')
   }
 
