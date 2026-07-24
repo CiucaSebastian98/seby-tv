@@ -4,10 +4,10 @@ import { useNowNext } from '../../hooks/useEpg.js'
 import { useFavorites } from '../../hooks/useFavorites.js'
 import { useAppState } from '../../context/AppContext.jsx'
 import { selectVisibleChannels } from '../../services/channelService.js'
-import { formatTime } from '../../utils/format.js'
 import VideoPlayer from './VideoPlayer.jsx'
 import OpenInVlcButton from './OpenInVlcButton.jsx'
 import EpgSchedule from './EpgSchedule.jsx'
+import ChannelHero from './ChannelHero.jsx'
 
 /**
  * Pagina de canal (ruta `/:slug`): player 16:9 sus, butonul „Open in VLC" sub el
@@ -67,7 +67,7 @@ export default function ChannelPage() {
 
   return (
     <div className="min-h-screen bg-bg text-fg">
-      {/* Header sticky */}
+      {/* Header minimal: doar navigare + favorite */}
       <header className="sticky top-0 z-30 border-b border-edge bg-bg/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
           <button
@@ -77,65 +77,47 @@ export default function ChannelPage() {
             ← Înapoi
           </button>
 
-          {channel.logo ? (
-            <img
-              src={channel.logo}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="h-8 w-8 shrink-0 rounded object-contain"
-            />
-          ) : null}
-
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-lg font-bold md:text-xl">
-              {channel.flag} {channel.name}
-            </h1>
-            {now && (
-              <p className="truncate text-xs text-muted">
-                <span className="text-fg/80">Acum:</span> {now.title}
-                {now.stop ? ` · până la ${formatTime(now.stop)}` : ''}
-              </p>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {canZap && (
+              <>
+                <button
+                  onClick={() => zapTo(-1)}
+                  title="Canalul anterior (←)"
+                  aria-label="Canalul anterior"
+                  className="grid h-9 w-9 place-items-center rounded-full bg-card text-lg ring-1 ring-edge transition-colors hover:bg-elev"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => zapTo(1)}
+                  title="Canalul următor (→)"
+                  aria-label="Canalul următor"
+                  className="grid h-9 w-9 place-items-center rounded-full bg-card text-lg ring-1 ring-edge transition-colors hover:bg-elev"
+                >
+                  ›
+                </button>
+              </>
             )}
+
+            <button
+              onClick={() => toggleFavorite(channel.id)}
+              title={fav ? 'Scoate din favorite (f)' : 'Adaugă la favorite (f)'}
+              aria-label="Favorite"
+              className={`ml-1 grid h-9 w-9 place-items-center rounded-full text-base ring-1 transition-colors ${
+                fav
+                  ? 'bg-focus text-black ring-transparent'
+                  : 'bg-card ring-edge hover:bg-elev'
+              }`}
+            >
+              {fav ? '★' : '☆'}
+            </button>
           </div>
-
-          {canZap && (
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                onClick={() => zapTo(-1)}
-                title="Canalul anterior (←)"
-                aria-label="Canalul anterior"
-                className="grid h-9 w-9 place-items-center rounded-full bg-card text-lg ring-1 ring-edge transition-colors hover:bg-elev"
-              >
-                ‹
-              </button>
-              <button
-                onClick={() => zapTo(1)}
-                title="Canalul următor (→)"
-                aria-label="Canalul următor"
-                className="grid h-9 w-9 place-items-center rounded-full bg-card text-lg ring-1 ring-edge transition-colors hover:bg-elev"
-              >
-                ›
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() => toggleFavorite(channel.id)}
-            title={fav ? 'Scoate din favorite (f)' : 'Adaugă la favorite (f)'}
-            aria-label="Favorite"
-            className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ring-1 transition-colors ${
-              fav
-                ? 'bg-focus text-black ring-transparent'
-                : 'bg-card ring-edge hover:bg-elev'
-            }`}
-          >
-            {fav ? '★' : '☆'}
-          </button>
         </div>
       </header>
 
-      {/* Player + VLC */}
-      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 pt-4">
+      {/* Hero (logo + nume + ce rulează acum) → player → VLC */}
+      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 pt-5">
+        <ChannelHero channel={channel} now={now} />
         <VideoPlayer key={channel.id} channel={channel} />
         <OpenInVlcButton channel={channel} />
       </div>
