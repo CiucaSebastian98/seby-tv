@@ -21,6 +21,14 @@ export function useTheme() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
+
+    // Potrivim bara de sus a browserului (status bar / zona de deasupra
+    // navbar-ului) cu culoarea navbar-ului (--c-elev): navy în dark, alb în light.
+    const navColor = theme === 'light' ? '#ffffff' : '#0f1d37'
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', navColor)
+
     try {
       localStorage.setItem(LS_THEME_KEY, theme)
     } catch {
