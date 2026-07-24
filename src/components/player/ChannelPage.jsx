@@ -70,7 +70,7 @@ export default function ChannelPage() {
     <div className="min-h-screen bg-bg text-fg">
       {/* Header minimal: doar navigare + favorite */}
       <header
-        className="sticky top-0 z-30 border-b border-edge bg-elev/85 backdrop-blur"
+        className="sticky top-0 z-30 border-b border-edge bg-elev"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3">
