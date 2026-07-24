@@ -10,7 +10,10 @@ export default function TopBar() {
   const { setTheme } = useAppActions()
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-edge bg-elev/85 px-8 py-4 backdrop-blur-xl md:px-12 lg:px-16">
+    <header
+      className="sticky top-0 z-30 flex items-center gap-4 border-b border-edge bg-elev/85 px-8 py-4 backdrop-blur-xl md:px-12 lg:px-16"
+      style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
+    >
       <Link
         to="/"
         aria-label="Seby TV — înapoi la canale"

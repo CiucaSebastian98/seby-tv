@@ -20,6 +20,14 @@ export default function App() {
     <div className="grain min-h-screen">
       <ScrollToTop />
 
+      {/* Bandă solidă peste zona notch-ului (iPhone): acoperă safe-area de sus cu
+          culoarea navbar-ului, ca la scroll conținutul să nu se mai vadă acolo. */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 top-0 z-40 bg-elev"
+        style={{ height: 'env(safe-area-inset-top)' }}
+      />
+
       {status === 'loading' && <BrowseSkeleton />}
 
       {status === 'error' && (
