@@ -78,24 +78,24 @@ export default function ChannelPage() {
             ← Înapoi
           </button>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-2.5">
             {canZap && (
               <>
                 <button
                   onClick={() => zapTo(-1)}
                   title="Canalul anterior (←)"
                   aria-label="Canalul anterior"
-                  className="grid h-9 w-9 place-items-center rounded-full bg-card text-lg ring-1 ring-edge transition-colors hover:bg-elev"
+                  className="grid h-9 w-9 place-items-center rounded-full bg-card ring-1 ring-edge transition-colors hover:bg-elev"
                 >
-                  ‹
+                  <Chevron dir="left" />
                 </button>
                 <button
                   onClick={() => zapTo(1)}
                   title="Canalul următor (→)"
                   aria-label="Canalul următor"
-                  className="grid h-9 w-9 place-items-center rounded-full bg-card text-lg ring-1 ring-edge transition-colors hover:bg-elev"
+                  className="grid h-9 w-9 place-items-center rounded-full bg-card ring-1 ring-edge transition-colors hover:bg-elev"
                 >
-                  ›
+                  <Chevron dir="right" />
                 </button>
               </>
             )}
@@ -104,7 +104,7 @@ export default function ChannelPage() {
               onClick={() => toggleFavorite(channel.id)}
               title={fav ? 'Scoate din favorite (f)' : 'Adaugă la favorite (f)'}
               aria-label="Favorite"
-              className={`ml-1 grid h-9 w-9 place-items-center rounded-full text-base ring-1 transition-colors ${
+              className={`grid h-9 w-9 place-items-center rounded-full text-base ring-1 transition-colors ${
                 fav
                   ? 'bg-focus text-black ring-transparent'
                   : 'bg-card ring-edge hover:bg-elev'
@@ -130,5 +130,24 @@ export default function ChannelPage() {
 
       <Footer />
     </div>
+  )
+}
+
+/** Chevron SVG, centrat perfect în butoanele rotunde de zapping. */
+function Chevron({ dir }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d={dir === 'left' ? 'M15 18l-6-6 6-6' : 'M9 18l6-6-6-6'} />
+    </svg>
   )
 }

@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react'
 import { useSchedule } from '../../hooks/useEpg.js'
 import { formatTime, formatDayLabel, dayKey } from '../../utils/format.js'
 
+/** Peste câte caractere o descriere primește toggle-ul „vezi mai mult". */
+const DESC_EXPAND_THRESHOLD = 140
+
 /** Etichetă scurtă de zi pentru butoanele selectorului: Azi / Mâine / „Sâm, 26 iul." */
 function dayTabLabel(date, todayKey, tomorrowKey) {
   const k = dayKey(date)
@@ -76,47 +79,77 @@ export default function EpgSchedule({ channelId }) {
           </div>
 
           <ol className="space-y-1">
-            {activeDay?.items.map(({ p, i }) => {
-              const isNow = i === nowIndex
-              const isPast = !isNow && p.start < now
-
-              return (
-                <li
-                  key={`${p.start.getTime()}-${i}`}
-                  className={`flex gap-3 rounded-xl px-3 py-2.5 transition-colors ${
-                    isNow
-                      ? 'bg-accent/15 ring-1 ring-accent/40'
-                      : isPast
-                        ? 'opacity-50'
-                        : 'hover:bg-card/60'
-                  }`}
-                >
-                  <div className="w-24 shrink-0 tabular-nums text-sm text-muted">
-                    {formatTime(p.start)}
-                    {p.stop ? `–${formatTime(p.stop)}` : ''}
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-medium ${isNow ? 'text-fg' : 'text-fg/90'}`}>
-                        {p.title || 'Program'}
-                      </span>
-                      {isNow && (
-                        <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                          ● Acum
-                        </span>
-                      )}
-                    </div>
-                    {p.desc && (
-                      <p className="mt-0.5 line-clamp-2 text-sm text-muted">{p.desc}</p>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
+            {activeDay?.items.map(({ p, i }) => (
+              <ProgramItem
+                key={`${p.start.getTime()}-${i}`}
+                p={p}
+                isNow={i === nowIndex}
+                isPast={i !== nowIndex && p.start < now}
+              />
+            ))}
           </ol>
         </>
       )}
     </section>
+  )
+}
+
+/**
+ * Un rând de program. Descrierile lungi (> prag) sunt trunchiate la 2 rânduri cu
+ * un toggle „vezi mai mult / mai puțin", ca să poți citi tot textul fără să pleci
+ * din pagină. Descrierile scurte se afișează integral, fără toggle.
+ */
+function ProgramItem({ p, isNow, isPast }) {
+  const [expanded, setExpanded] = useState(false)
+  const isLong = (p.desc?.length || 0) > DESC_EXPAND_THRESHOLD
+
+  return (
+    <li
+      className={`flex gap-3 rounded-xl px-3 py-2.5 transition-colors ${
+        isNow
+          ? 'bg-accent/15 ring-1 ring-accent/40'
+          : isPast
+            ? 'opacity-50'
+            : 'hover:bg-card/60'
+      }`}
+    >
+      <div className="w-24 shrink-0 tabular-nums text-sm text-muted">
+        {formatTime(p.start)}
+        {p.stop ? `–${formatTime(p.stop)}` : ''}
+      </div>
+
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`font-medium ${isNow ? 'text-fg' : 'text-fg/90'}`}>
+            {p.title || 'Program'}
+          </span>
+          {isNow && (
+            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              ● Acum
+            </span>
+          )}
+        </div>
+
+        {p.desc && (
+          <>
+            <p
+              className={`mt-0.5 text-sm text-muted ${
+                isLong && !expanded ? 'line-clamp-2' : ''
+              }`}
+            >
+              {p.desc}
+            </p>
+            {isLong && (
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="mt-1 text-xs font-semibold text-accent transition-colors hover:underline"
+              >
+                {expanded ? 'Vezi mai puțin ▲' : 'Vezi mai mult ▼'}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+    </li>
   )
 }

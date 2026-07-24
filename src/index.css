@@ -15,7 +15,11 @@
   --c-accent: 22 163 74; /* #16a34a verde (text alb lizibil) */
   --c-accent-2: 74 222 128; /* #4ade80 verde luminos */
   --c-focus: 74 222 128; /* inel focus verde luminos */
-  --glow: radial-gradient(1200px 600px at 15% -10%, rgba(74, 222, 128, 0.07), transparent 60%),
+  --glow:
+    radial-gradient(circle, rgba(74, 222, 128, 0.22) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(59, 130, 246, 0.18) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(139, 92, 246, 0.14) 1px, transparent 1.6px),
+    radial-gradient(1200px 600px at 15% -10%, rgba(74, 222, 128, 0.07), transparent 60%),
     radial-gradient(1000px 520px at 100% 0%, rgba(29, 78, 216, 0.12), transparent 55%),
     linear-gradient(180deg, #0c1a35 0%, #0a1730 100%);
 }
@@ -31,7 +35,11 @@
   --c-accent: 1 122 50; /* #017a32 verde (text alb lizibil) */
   --c-accent-2: 74 222 128; /* #4ade80 (hero rămâne întunecat) */
   --c-focus: 22 163 74; /* #16a34a inel focus verde */
-  --glow: radial-gradient(1200px 600px at 15% -10%, rgba(1, 122, 50, 0.05), transparent 60%),
+  --glow:
+    radial-gradient(circle, rgba(1, 122, 50, 0.16) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(59, 130, 246, 0.12) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(0, 0, 0, 0.06) 1px, transparent 1.6px),
+    radial-gradient(1200px 600px at 15% -10%, rgba(1, 122, 50, 0.05), transparent 60%),
     radial-gradient(1000px 520px at 100% 0%, rgba(225, 223, 206, 0.55), transparent 55%),
     linear-gradient(180deg, #f4f2ea 0%, #f0eee6 100%);
 }
@@ -50,6 +58,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-image: var(--glow);
+  /* Primele 3 straturi = grila de puncte (decalată); restul = glow-urile mari. */
+  background-size: 22px 22px, 44px 44px, 66px 66px, auto, auto, auto;
+  background-position: 0 0, 8px 8px, 16px 16px, 0 0, 0 0, 0 0;
   background-attachment: fixed;
 }
 

@@ -9,16 +9,16 @@ import { formatTime, initials } from '../../utils/format.js'
 export default function ChannelHero({ channel, now }) {
   return (
     <div className="flex gap-4">
-      <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl bg-card ring-1 ring-edge md:h-32 md:w-32">
+      <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-card ring-1 ring-edge md:h-24 md:w-24">
         {channel.logo ? (
           <img
             src={channel.logo}
             alt=""
             referrerPolicy="no-referrer"
-            className="h-full w-full object-contain p-2"
+            className="h-full w-full object-contain p-2.5"
           />
         ) : (
-          <span className="font-display text-4xl text-muted">{initials(channel.name)}</span>
+          <span className="font-display text-3xl text-muted">{initials(channel.name)}</span>
         )}
       </div>
 
