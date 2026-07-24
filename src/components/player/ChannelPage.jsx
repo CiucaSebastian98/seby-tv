@@ -67,7 +67,7 @@ export default function ChannelPage() {
   const canZap = zapList.length > 1
 
   return (
-    <div className="min-h-screen bg-bg text-fg">
+    <div className="min-h-screen text-fg">
       {/* Header minimal: doar navigare + favorite */}
       <header
         className="sticky top-0 z-30 border-b border-edge bg-elev"
