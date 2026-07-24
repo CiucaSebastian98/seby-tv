@@ -64,6 +64,28 @@ function keyFor(url) {
   return h1.toString(36) + '-' + h2.toString(36)
 }
 
+/**
+ * Sursă „ip:port" (TS brut DVB — Digi Sport &co.): http(s):// cu port explicit
+ * și fără extensie HLS/DASH. DOAR astea au nevoie de re-encodare video: livrează
+ * H.264 cu open-GOP + B-frame-uri, iar la `-c:v copy` fiecare segment HLS începe
+ * pe un keyframe care nu e IDR → decodorul hardware de pe mobil (iPhone nativ,
+ * Android hls.js) nu-l poate reconstrui și afișează frame-uri „zburătoare".
+ *
+ * Sursele HLS/DASH (.m3u8/.mpd) sunt deja segmentate curat → rămân pe `copy`
+ * (cost CPU ~zero), la fel restul catalogului.
+ */
+function isRawIpPortTs(url) {
+  try {
+    const u = new URL(url)
+    if (!/^https?:$/.test(u.protocol)) return false // doar http(s) ip:port
+    if (!u.port) return false                        // port explicit obligatoriu
+    if (/\.(m3u8|mpd)(\?|$)/i.test(u.pathname)) return false // HLS/DASH → copy e ok
+    return true
+  } catch {
+    return false
+  }
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Playlist: allowlist de canale (key → { url, userAgent })
 // ──────────────────────────────────────────────────────────────────────
@@ -187,6 +209,36 @@ async function createSession(key) {
 
   const dir = await mkdtemp(join(tmpdir(), 'sebytv-'))
 
+  // Doar sursele ip:port (TS brut DVB) se re-encodează video. Vezi isRawIpPortTs.
+  const reencodeVideo = isRawIpPortTs(ch.url)
+
+  // ── VIDEO ──
+  // Implicit: COPY (zero re-encodare) — HLS/DASH sunt deja segmentate curat.
+  //
+  // Pentru ip:port: re-encodare H.264 cu GOP ÎNCHIS, aliniat pe IDR la fiecare
+  // 2s (cât `-hls_time`) și FĂRĂ B-frame-uri. Așa fiecare segment începe cu un
+  // keyframe curat, iar decodorul hardware de pe mobil îl redă fără glitch.
+  //   - ultrafast + zerolatency: minim CPU (VPS-ul are doar 2 vCPU), latență mică
+  //   - sc_threshold=0 + g/keyint_min egale: GOP fix, predictibil
+  //   - maxrate/bufsize: plafon de bitrate ca să nu îngropăm datele mobile
+  //   - sesiunile ffmpeg sunt partajate per canal, deci costul e per canal unic
+  const videoArgs = reencodeVideo
+    ? [
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-tune', 'zerolatency',
+        '-profile:v', 'main',
+        '-pix_fmt', 'yuv420p',
+        '-g', '50',                          // ~2s la 25fps
+        '-keyint_min', '50',
+        '-sc_threshold', '0',                // fără keyframe-uri la scene-cut
+        '-bf', '0',                          // fără B-frame-uri (mobil HW-friendly)
+        '-force_key_frames', 'expr:gte(t,n_forced*2)', // IDR fix la 2s
+        '-maxrate', '3M',
+        '-bufsize', '6M',
+      ]
+    : ['-c:v', 'copy']
+
 // ABORDARE OPTIMIZATĂ — Consum minim CPU & I/O
   const args = [
     '-hide_banner',
@@ -200,14 +252,14 @@ async function createSession(key) {
     '-fflags', '+genpts+discardcorrupt',
     '-err_detect', 'ignore_err',
 
-    // 1. VIDEO COPY (zero re-encodare) + AUDIO transcodat în AAC.
+    // 1. VIDEO (copy sau re-encode, vezi mai sus) + AUDIO transcodat în AAC.
     //
     // Audio-ul NU poate rămâne `copy`: sursele DVB românești (Digi Sport &co.)
     // livrează MPEG-1 Audio Layer II (mp2), pe care niciun browser nu îl poate
     // decoda în MSE. Rezultatul e un flux care se demuxează corect, dar rămâne
     // blocat la currentTime 0, fiindcă nu se produce niciodată audio decodat.
-    // Encodarea audio costă ~1-2% dintr-un core; video-ul rămâne intact.
-    '-c:v', 'copy',
+    // Encodarea audio costă ~1-2% dintr-un core.
+    ...videoArgs,
     '-c:a', 'aac',
     '-b:a', '128k',
     '-ac', '2',
@@ -221,7 +273,7 @@ async function createSession(key) {
     join(dir, 'index.m3u8'),
   ]
 
-  log('ffmpeg', `Pornesc pentru ${key}: ffmpeg ${args.slice(-1)}`)
+  log('ffmpeg', `Pornesc pentru ${key} (video: ${reencodeVideo ? 're-encode H.264 ip:port' : 'copy'})`)
   const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] })
 
   let errBuf = ''
