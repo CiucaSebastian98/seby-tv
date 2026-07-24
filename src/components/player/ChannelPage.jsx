@@ -119,17 +119,19 @@ export default function ChannelPage() {
         </div>
       </header>
 
-      {/* Hero (logo + nume + ce rulează acum) → player → VLC */}
-      <div className="mx-auto w-full max-w-3xl space-y-4 px-4 pt-5">
-        <ChannelHero channel={channel} now={now} />
-        <VideoPlayer key={channel.id} channel={channel} />
-        <OpenInVlcButton channel={channel} />
-      </div>
+      <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-5">
+        {/* Card: descriere canal + player + Open in VLC */}
+        <section className="space-y-4 rounded-2xl bg-card p-4 shadow-card ring-1 ring-edge md:p-5">
+          <ChannelHero channel={channel} now={now} />
+          <VideoPlayer key={channel.id} channel={channel} />
+          <OpenInVlcButton channel={channel} />
+        </section>
 
-      {/* Program TV */}
-      <div className="mt-6">
-        <EpgSchedule channelId={channel.id} />
-      </div>
+        {/* Card: program TV */}
+        <section className="rounded-2xl bg-card p-4 shadow-card ring-1 ring-edge md:p-5">
+          <EpgSchedule channelId={channel.id} />
+        </section>
+      </main>
 
       <Footer />
     </div>

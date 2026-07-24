@@ -11,7 +11,7 @@ export default function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-30 flex items-center gap-4 border-b border-edge bg-elev px-8 py-4 md:px-12 lg:px-16"
+      className="flex items-center gap-4 border-b border-edge bg-elev px-8 py-4 md:px-12 lg:px-16"
       style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}
     >
       <Link

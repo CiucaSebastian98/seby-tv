@@ -222,17 +222,20 @@ export default function BrowseView() {
 
   return (
     <div className="min-h-screen">
-      <TopBar />
+      {/* Navbar + categorii = un bloc sticky, fundal solid (fără textură). */}
+      <div className="sticky top-0 z-30 border-b border-edge bg-bg">
+        <TopBar />
 
-      <ChipsBar
-        chips={chips}
-        activeValue={activeCategory}
-        rowIndex={0}
-        isFocused={isFocused}
-        registerRef={registerRef}
-        setPos={setPos}
-        onSelect={selectChip}
-      />
+        <ChipsBar
+          chips={chips}
+          activeValue={activeCategory}
+          rowIndex={0}
+          isFocused={isFocused}
+          registerRef={registerRef}
+          setPos={setPos}
+          onSelect={selectChip}
+        />
+      </div>
 
       {showHero && (
         <Hero

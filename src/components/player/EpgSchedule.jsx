@@ -49,11 +49,11 @@ export default function EpgSchedule({ channelId }) {
   const activeDay = days.find((d) => d.key === activeKey)
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 pb-16">
+    <div>
       <h3 className="mb-3 font-display text-lg font-bold text-fg">Program TV</h3>
 
       {!hasEpg ? (
-        <p className="rounded-xl bg-card/60 p-4 text-sm text-muted ring-1 ring-edge">
+        <p className="rounded-xl bg-bg/60 p-4 text-sm text-muted ring-1 ring-edge">
           Program indisponibil pentru acest canal.
         </p>
       ) : (
@@ -69,7 +69,7 @@ export default function EpgSchedule({ channelId }) {
                   className={`shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold ring-1 transition-colors ${
                     active
                       ? 'bg-accent text-white ring-transparent'
-                      : 'bg-card text-fg/80 ring-edge hover:bg-elev'
+                      : 'bg-bg text-fg/80 ring-edge hover:bg-elev'
                   }`}
                 >
                   {dayTabLabel(d.date, todayKey, tomorrowKey)}
@@ -90,7 +90,7 @@ export default function EpgSchedule({ channelId }) {
           </ol>
         </>
       )}
-    </section>
+    </div>
   )
 }
 

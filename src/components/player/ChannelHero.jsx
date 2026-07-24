@@ -9,7 +9,7 @@ import { formatTime, initials } from '../../utils/format.js'
 export default function ChannelHero({ channel, now }) {
   return (
     <div className="flex gap-4">
-      <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-card ring-1 ring-edge md:h-24 md:w-24">
+      <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl bg-bg ring-1 ring-edge md:h-24 md:w-24">
         {channel.logo ? (
           <img
             src={channel.logo}
