@@ -127,33 +127,55 @@ export default function Hero({
             </button>
           </div>
 
-          {/* Indicatori de carusel — înălțime FIXĂ (h-2), fără wrap. Cel activ e o
-              pastilă cu bară de progres care se umple în ROTATE_MS (pauză la hover).
-              Click = sări la acel canal. */}
+          {/* Săgeți de derulare manuală + indicatori. Dots: înălțime FIXĂ (h-2),
+              fără wrap; cel activ e o pastilă cu bară de progres (pauză la hover). */}
           {count > 1 && (
-            <div className="mt-5 flex h-2 items-center gap-2">
-              {channels.map((ch, i) => {
-                const active = i === index
-                return (
-                  <button
-                    key={ch.id}
-                    onClick={() => setIndex(i)}
-                    aria-label={`Arată ${ch.name}`}
-                    title={ch.name}
-                    className={`relative h-2 shrink-0 overflow-hidden rounded-full transition-all duration-300 ${
-                      active ? 'w-8 bg-white/25' : 'w-2 bg-white/30 hover:bg-white/60'
-                    }`}
-                  >
-                    {active && (
-                      <span
-                        key={index}
-                        className="absolute inset-0 origin-left rounded-full bg-white animate-progress"
-                        style={{ animationPlayState: paused ? 'paused' : 'running' }}
-                      />
-                    )}
-                  </button>
-                )
-              })}
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setIndex((i) => (i - 1 + count) % count)}
+                aria-label="Canalul anterior din carusel"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition-colors hover:bg-white/20"
+              >
+                <Arrow dir="left" />
+              </button>
+
+              <div className="flex h-2 items-center gap-2">
+                {channels.map((ch, i) => {
+                  const active = i === index
+                  return (
+                    <button
+                      key={ch.id}
+                      tabIndex={-1}
+                      onClick={() => setIndex(i)}
+                      aria-label={`Arată ${ch.name}`}
+                      title={ch.name}
+                      className={`relative h-2 shrink-0 overflow-hidden rounded-full transition-all duration-300 ${
+                        active ? 'w-8 bg-white/25' : 'w-2 bg-white/30 hover:bg-white/60'
+                      }`}
+                    >
+                      {active && (
+                        <span
+                          key={index}
+                          className="absolute inset-0 origin-left rounded-full bg-white animate-progress"
+                          style={{ animationPlayState: paused ? 'paused' : 'running' }}
+                        />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setIndex((i) => (i + 1) % count)}
+                aria-label="Canalul următor din carusel"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition-colors hover:bg-white/20"
+              >
+                <Arrow dir="right" />
+              </button>
             </div>
           )}
         </div>
@@ -178,5 +200,24 @@ export default function Hero({
         </div>
       </div>
     </section>
+  )
+}
+
+/** Săgeată SVG centrată pentru butoanele de derulare a caruselului. */
+function Arrow({ dir }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d={dir === 'left' ? 'M15 18l-6-6 6-6' : 'M9 18l6-6-6-6'} />
+    </svg>
   )
 }
