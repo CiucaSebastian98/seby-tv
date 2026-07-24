@@ -58,9 +58,6 @@ export default function BrowseView() {
     return [...fav, ...rest]
   }, [base, activeCategory, favorites, recent])
 
-  const showHero = activeCategory === '' && !searching && ordered.length > 0
-  const featured = showHero ? ordered[0] : null
-
   // ── Secțiuni ──
   // Pe ecranul implicit (fără categorie activă, fără căutare) despărțim lista în
   // „Ultimele vizionate" / „Favorite" / „Toate canalele". Când userul filtrează
@@ -77,6 +74,26 @@ export default function BrowseView() {
     () => (showSections ? base.filter((c) => favorites.includes(c.id)) : []),
     [base, favorites, showSections],
   )
+
+  // Caruselul din hero: favorite + ultimele vizionate, deduplicate (max 10). Dacă
+  // userul n-are încă niciuna, cădem pe primele canale, ca banner-ul să nu fie gol.
+  const heroChannels = useMemo(() => {
+    if (!showSections) return []
+    const seen = new Set()
+    const list = []
+    for (const ch of [...recentChannels, ...favChannels]) {
+      if (ch && !seen.has(ch.id)) {
+        seen.add(ch.id)
+        list.push(ch)
+      }
+    }
+    const picked = list.slice(0, 10)
+    return picked.length ? picked : base.slice(0, 6)
+  }, [showSections, recentChannels, favChannels, base])
+
+  const showHero = heroChannels.length > 0
+  // Canalul afișat acum în hero (rotește), pentru Enter din navigarea cu tastele.
+  const heroCurrentRef = useRef(heroChannels[0] || null)
 
   const sections = useMemo(() => {
     if (!showSections) return [{ id: 'result', title: '', channels: ordered }]
@@ -110,7 +127,7 @@ export default function BrowseView() {
   // tastele să curgă natural dintr-o secțiune în următoarea.
   const { gridRows, sectionBases } = useMemo(() => {
     const rows = [chips.map((ch) => ({ kind: 'chip', ...ch }))]
-    if (featured) rows.push([{ kind: 'channel', channel: featured }])
+    if (showHero) rows.push([{ kind: 'hero' }])
 
     const bases = []
     for (const section of sections) {
@@ -120,7 +137,7 @@ export default function BrowseView() {
       }
     }
     return { gridRows: rows, sectionBases: bases }
-  }, [chips, featured, sections, cols])
+  }, [chips, showHero, sections, cols])
 
   // Selectează o categorie; click pe cea deja activă o deselectează (revine la Toate).
   // Mută focusul pe chip-ul care rămâne activ, ca doar acela să fie verde.
@@ -139,7 +156,10 @@ export default function BrowseView() {
   // Handlere tastatură (item din grilă).
   const onGridSelect = (item) => {
     if (item.kind === 'chip') applyChip(item.value)
-    else if (item.kind === 'channel') navigate(`/${item.channel.slug}`)
+    else if (item.kind === 'hero') {
+      const ch = heroCurrentRef.current || heroChannels[0]
+      if (ch) navigate(`/${ch.slug}`)
+    } else if (item.kind === 'channel') navigate(`/${item.channel.slug}`)
   }
   const onGridFavorite = (item) => {
     if (item.kind === 'channel') toggleFavorite(item.channel.id)
@@ -214,15 +234,17 @@ export default function BrowseView() {
         onSelect={selectChip}
       />
 
-      {featured && (
+      {showHero && (
         <Hero
-          channel={featured}
+          channels={heroChannels}
           rowIndex={1}
           isFocused={isFocused}
           registerRef={registerRef}
           setPos={setPos}
-          isFavorite={isFavorite}
           onSelect={playChannel}
+          onCurrentChange={(ch) => {
+            heroCurrentRef.current = ch
+          }}
         />
       )}
 
