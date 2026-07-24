@@ -32,10 +32,21 @@ export default {
           '100%': { opacity: 1, transform: 'translateY(0)' },
         },
         'fade-in': { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+        'slide-in': {
+          '0%': { opacity: 0, transform: 'translateX(48px)' },
+          '100%': { opacity: 1, transform: 'translateX(0)' },
+        },
+        progress: {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both',
         'fade-in': 'fade-in 0.4s ease both',
+        'slide-in': 'slide-in 0.45s cubic-bezier(0.22,1,0.36,1) both',
+        // Durata TREBUIE să fie egală cu ROTATE_MS din Hero.jsx (7s).
+        progress: 'progress 7s linear both',
       },
     },
   },

@@ -84,7 +84,7 @@ export default function Hero({
       )}
 
       <div className="relative grid gap-6 p-8 md:grid-cols-[1fr_auto] md:items-center md:p-12">
-        <div key={current.id} className="max-w-xl animate-fade-in">
+        <div key={current.id} className="max-w-xl animate-slide-in">
           <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent-2">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent-2" />
             Acum la TV
@@ -127,22 +127,33 @@ export default function Hero({
             </button>
           </div>
 
-          {/* Indicatori de carusel — click = sări la acel canal (și repune pauza). */}
+          {/* Indicatori de carusel — înălțime FIXĂ (h-2), fără wrap. Cel activ e o
+              pastilă cu bară de progres care se umple în ROTATE_MS (pauză la hover).
+              Click = sări la acel canal. */}
           {count > 1 && (
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              {channels.map((ch, i) => (
-                <button
-                  key={ch.id}
-                  onClick={() => setIndex(i)}
-                  aria-label={`Arată ${ch.name}`}
-                  title={ch.name}
-                  className={`h-2 rounded-full transition-all ${
-                    i === index
-                      ? 'w-6 bg-white'
-                      : 'w-2 bg-white/30 hover:bg-white/60'
-                  }`}
-                />
-              ))}
+            <div className="mt-5 flex h-2 items-center gap-2">
+              {channels.map((ch, i) => {
+                const active = i === index
+                return (
+                  <button
+                    key={ch.id}
+                    onClick={() => setIndex(i)}
+                    aria-label={`Arată ${ch.name}`}
+                    title={ch.name}
+                    className={`relative h-2 shrink-0 overflow-hidden rounded-full transition-all duration-300 ${
+                      active ? 'w-8 bg-white/25' : 'w-2 bg-white/30 hover:bg-white/60'
+                    }`}
+                  >
+                    {active && (
+                      <span
+                        key={index}
+                        className="absolute inset-0 origin-left rounded-full bg-white animate-progress"
+                        style={{ animationPlayState: paused ? 'paused' : 'running' }}
+                      />
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
