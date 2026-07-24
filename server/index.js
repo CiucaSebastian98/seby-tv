@@ -225,11 +225,15 @@ async function createSession(key) {
   //   - CRF 21 cu plafon 5M (VBV): calitate constantă, cu tavan de bandă
   //   - sc_threshold=0 + g mare: singurele keyframe-uri sunt cele forțate la 2s,
   //     independent de framerate-ul sursei (25/50fps)
-  //   - cost CPU mai mare ca ultrafast, dar sesiunile ffmpeg sunt partajate per
-  //     canal (dedup pe key), deci e per canal unic vizionat, nu per user.
-  //     Dacă cele 2 vCPU se saturează, adaugă `-vf scale=-2:720` ca să limitezi.
+  //   - scale la 720p (DOAR în jos): pe 2 vCPU, re-encode-ul la 1080p NU ține
+  //     pasul cu timpul real → segmentele ies târziu → playerul „se înțeapă".
+  //     720p taie ~2.3× din pixeli și încape în realtime; pe telefon arată la
+  //     fel de bine. `min(720,ih)` nu umflă sursele SD (576 rămâne 576).
+  //   - sesiunile ffmpeg sunt partajate per canal (dedup pe key) → cost per
+  //     canal unic vizionat, nu per user.
   const videoArgs = reencodeVideo
     ? [
+        '-vf', "scale=-2:'min(720,ih)'",     // cap la 720p, fără upscale
         '-c:v', 'libx264',
         '-preset', 'veryfast',
         '-profile:v', 'high',
