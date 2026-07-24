@@ -98,6 +98,23 @@ export async function fetchEpg(url) {
 }
 
 /**
+ * Indexul programului care rulează „acum" în listă (sortată cronologic), sau -1
+ * dacă în acest moment nu e niciun program (înainte de primul / după ultimul /
+ * listă goală). Același criteriu ca `pickNowNext`.
+ * @returns {number}
+ */
+export function pickNowIndex(programmes, at = new Date()) {
+  if (!programmes || programmes.length === 0) return -1
+  for (let i = 0; i < programmes.length; i++) {
+    const p = programmes[i]
+    const ends = p.stop || (programmes[i + 1] && programmes[i + 1].start)
+    if (p.start <= at && (!ends || at < ends)) return i
+    if (p.start > at) return -1
+  }
+  return -1
+}
+
+/**
  * Din lista de programe a unui canal, întoarce ce e „acum" și „urmează".
  * @returns {{now: object|null, next: object|null}}
  */

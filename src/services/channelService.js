@@ -192,6 +192,7 @@ export function buildCatalog({ playlistText, countries = [] }) {
       reason: reason || '',
       proxyUrl: proxyUrl || '',
       sourceUrl: e.url,
+      userAgent: e.userAgent || '', // pentru „Open in VLC" (.m3u cu http-user-agent)
     })
   })
 

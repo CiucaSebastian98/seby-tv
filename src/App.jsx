@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import BrowseView from './components/browse/BrowseView.jsx'
-import PlayerView from './components/player/PlayerView.jsx'
+import ChannelPage from './components/player/ChannelPage.jsx'
 import BrowseSkeleton from './components/ui/BrowseSkeleton.jsx'
 import ErrorBanner from './components/ui/ErrorBanner.jsx'
 import { useChannels } from './hooks/useChannels.js'
@@ -35,7 +35,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<BrowseView />} />
           {/* /pro-tv, /antena-1 etc. — un canal per URL */}
-          <Route path="/:slug" element={<PlayerView />} />
+          <Route path="/:slug" element={<ChannelPage />} />
         </Routes>
       )}
     </div>

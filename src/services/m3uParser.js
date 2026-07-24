@@ -18,8 +18,12 @@ export function parseM3U(text) {
 
     if (line.startsWith('#EXTINF')) {
       current = parseExtinf(line)
+    } else if (line.startsWith('#EXTVLCOPT:http-user-agent=') && current) {
+      // User-agent pe linie proprie — suprascrie atributul din EXTINF (ultimul
+      // câștigă). Folosit la „Open in VLC" pentru sursele care cer un UA anume.
+      current.userAgent = line.slice('#EXTVLCOPT:http-user-agent='.length).trim()
     } else if (line.startsWith('#')) {
-      // #EXTM3U, #EXTVLCOPT, #EXTGRP etc. — nu ne interesează pentru redare web.
+      // #EXTM3U, alte #EXTVLCOPT, #EXTGRP etc. — irelevante pentru redare web.
       continue
     } else if (current) {
       current.url = line
@@ -41,6 +45,7 @@ function parseExtinf(line) {
     tvgId: attrs['tvg-id'] || '',
     logo: attrs['tvg-logo'] || '',
     group: attrs['group-title'] || '',
+    userAgent: attrs['http-user-agent'] || '',
     name: extractName(line),
     url: '',
   }
