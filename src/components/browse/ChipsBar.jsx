@@ -14,7 +14,7 @@ export default function ChipsBar({ chips, activeValue, rowIndex, isFocused, regi
   }, [activeValue])
 
   return (
-    <div className="row-scroll flex gap-3 overflow-x-auto px-8 pb-3 pt-7 md:px-12 lg:px-16">
+    <div className="row-scroll flex items-center gap-3 overflow-x-auto px-8 py-4 md:px-12 lg:px-16">
       {chips.map((chip, c) => {
         const active = chip.value === activeValue
         const focused = isFocused(rowIndex, c)

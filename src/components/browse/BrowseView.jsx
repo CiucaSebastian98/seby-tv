@@ -251,7 +251,11 @@ export default function BrowseView() {
         />
       )}
 
-      <SearchBox />
+      {/* Mai mult spațiu deasupra căutării când urmează un empty state, ca să nu
+          stea lipită de bara de categorii. */}
+      <div className={ordered.length === 0 ? 'pt-6 md:pt-10' : ''}>
+        <SearchBox />
+      </div>
 
       {/* Element de măsurare stabil pentru useColumns. Are exact padding-ul
           orizontal al grilelor, deci `clientWidth` e identic — dar spre deosebire
