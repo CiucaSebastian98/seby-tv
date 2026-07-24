@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://sebytv/SebyTV" version="1.0.0" viewmodes="maximized">
+  <tizen:application id="SebyTV0001.SebyTV" package="SebyTV0001" required_version="2.4"/>
+  <content src="index.html"/>
+  <icon src="icon-512.png"/>
+  <name>Seby TV</name>
+
+  <!-- Acces la rețea pentru web app (playlist + proxy). Rețeaua web se dă prin
+       <access>, nu prin privilegiul nativ „internet". -->
+  <access origin="*" subdomains="true"/>
+
+  <!-- Taste telecomandă -->
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+
+  <tizen:profile name="tv"/>
+
+  <!-- CSP permisiv: JS-ul e inline (script inline), video-ul folosește Web Workers
+       (hls.js/mpegts.js) și blob:, iar stream-urile/logo-urile vin de pe alte domenii. -->
+  <tizen:content-security-policy>default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval' blob:; style-src * 'unsafe-inline'; connect-src *; media-src * blob:; img-src * data: blob:; worker-src * blob:; child-src * blob:</tizen:content-security-policy>
+
+  <!-- hwkey-event=enable → tasta Back ajunge ca keydown (10009) -->
+  <tizen:setting screen-orientation="landscape" context-menu="disable"
+                 background-support="disable" hwkey-event="enable"/>
+</widget>

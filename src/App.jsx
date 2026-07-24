@@ -7,12 +7,14 @@ import ErrorBanner from './components/ui/ErrorBanner.jsx'
 import { useChannels } from './hooks/useChannels.js'
 import { useEpgLoader } from './hooks/useEpg.js'
 import { useTheme } from './hooks/useTheme.js'
+import { useTvRemote } from './hooks/useTvRemote.js'
 import { useAppState } from './context/AppContext.jsx'
 
 export default function App() {
   useChannels()
   useEpgLoader()
   useTheme() // aplică dark/light pe <html>
+  useTvRemote() // tasta Back a telecomenzii (Tizen)
 
   const { status, error } = useAppState()
 
