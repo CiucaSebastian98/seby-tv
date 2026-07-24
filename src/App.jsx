@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import BrowseView from './components/browse/BrowseView.jsx'
 import ChannelPage from './components/player/ChannelPage.jsx'
+import ScrollToTop from './components/layout/ScrollToTop.jsx'
 import BrowseSkeleton from './components/ui/BrowseSkeleton.jsx'
 import ErrorBanner from './components/ui/ErrorBanner.jsx'
 import { useChannels } from './hooks/useChannels.js'
@@ -17,6 +18,8 @@ export default function App() {
 
   return (
     <div className="grain min-h-screen">
+      <ScrollToTop />
+
       {status === 'loading' && <BrowseSkeleton />}
 
       {status === 'error' && (

@@ -8,6 +8,7 @@ import VideoPlayer from './VideoPlayer.jsx'
 import OpenInVlcButton from './OpenInVlcButton.jsx'
 import EpgSchedule from './EpgSchedule.jsx'
 import ChannelHero from './ChannelHero.jsx'
+import Footer from '../layout/Footer.jsx'
 
 /**
  * Pagina de canal (ruta `/:slug`): player 16:9 sus, butonul „Open in VLC" sub el
@@ -126,6 +127,8 @@ export default function ChannelPage() {
       <div className="mt-6">
         <EpgSchedule channelId={channel.id} />
       </div>
+
+      <Footer />
     </div>
   )
 }

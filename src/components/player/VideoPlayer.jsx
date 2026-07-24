@@ -31,6 +31,7 @@ export default function VideoPlayer({ channel }) {
 
   const [isPip, setIsPip] = useState(false)
   const [isFull, setIsFull] = useState(false)
+  const [airplayAvailable, setAirplayAvailable] = useState(false)
 
   // Marchează canalul ca vizionat abia după ce redarea chiar pornește — altfel
   // un canal mort ar polua lista de „ultimele vizionate".
@@ -38,6 +39,26 @@ export default function VideoPlayer({ channel }) {
     if (state === 'playing' && channel?.id) markWatched(channel.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, channel?.id])
+
+  // ── AirPlay (doar Safari/Apple) ──
+  // API-ul `webkit…` există numai pe Safari (iPhone/iPad/Mac). Butonul apare
+  // doar când chiar există un dispozitiv AirPlay disponibil, semnalat de eveniment.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || typeof video.webkitShowPlaybackTargetPicker !== 'function') return
+    video.setAttribute('x-webkit-airplay', 'allow')
+    const onAvail = (e) => setAirplayAvailable(e.availability === 'available')
+    video.addEventListener('webkitplaybacktargetavailabilitychanged', onAvail)
+    return () => video.removeEventListener('webkitplaybacktargetavailabilitychanged', onAvail)
+  }, [])
+
+  const showAirplay = () => {
+    try {
+      videoRef.current?.webkitShowPlaybackTargetPicker()
+    } catch {
+      // nesuportat / refuzat — ignorăm
+    }
+  }
 
   // ── Picture-in-Picture ──
   const togglePip = async () => {
@@ -126,8 +147,31 @@ export default function VideoPlayer({ channel }) {
         className="h-full w-full object-contain"
       />
 
-      {/* Butoane fullscreen + PiP, colț dreapta-sus */}
+      {/* Butoane AirPlay + PiP + fullscreen, colț dreapta-sus */}
       <div className="absolute right-3 top-3 flex items-center gap-2">
+        {airplayAvailable && (
+          <button
+            onClick={showAirplay}
+            title="AirPlay"
+            aria-label="AirPlay"
+            className="grid h-10 w-10 place-items-center rounded-full bg-black/60 text-white ring-1 ring-white/25 backdrop-blur transition-colors hover:bg-black/80"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
+              <path d="M12 15l5 6H7l5-6z" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        )}
         {document.pictureInPictureEnabled && (
           <button
             onClick={togglePip}
