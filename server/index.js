@@ -216,26 +216,31 @@ async function createSession(key) {
   // Implicit: COPY (zero re-encodare) — HLS/DASH sunt deja segmentate curat.
   //
   // Pentru ip:port: re-encodare H.264 cu GOP ÎNCHIS, aliniat pe IDR la fiecare
-  // 2s (cât `-hls_time`) și FĂRĂ B-frame-uri. Așa fiecare segment începe cu un
-  // keyframe curat, iar decodorul hardware de pe mobil îl redă fără glitch.
-  //   - ultrafast + zerolatency: minim CPU (VPS-ul are doar 2 vCPU), latență mică
-  //   - sc_threshold=0 + g/keyint_min egale: GOP fix, predictibil
-  //   - maxrate/bufsize: plafon de bitrate ca să nu îngropăm datele mobile
-  //   - sesiunile ffmpeg sunt partajate per canal, deci costul e per canal unic
+  // 2s (cât `-hls_time`). Fiecare segment începe cu un keyframe curat, deci
+  // decodorul hardware de pe mobil îl redă fără glitch — INDIFERENT dacă în
+  // interiorul GOP-ului sunt B-frame-uri (acum le controlăm noi, spre deosebire
+  // de open-GOP-ul murdar al sursei la `copy`).
+  //   - veryfast + profil High: compresie eficientă → imagine clară la bitrate
+  //     rezonabil (ultrafast ședea prea „bugetar" și încețoșa sportul rapid)
+  //   - CRF 21 cu plafon 5M (VBV): calitate constantă, cu tavan de bandă
+  //   - sc_threshold=0 + g mare: singurele keyframe-uri sunt cele forțate la 2s,
+  //     independent de framerate-ul sursei (25/50fps)
+  //   - cost CPU mai mare ca ultrafast, dar sesiunile ffmpeg sunt partajate per
+  //     canal (dedup pe key), deci e per canal unic vizionat, nu per user.
+  //     Dacă cele 2 vCPU se saturează, adaugă `-vf scale=-2:720` ca să limitezi.
   const videoArgs = reencodeVideo
     ? [
         '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-tune', 'zerolatency',
-        '-profile:v', 'main',
+        '-preset', 'veryfast',
+        '-profile:v', 'high',
         '-pix_fmt', 'yuv420p',
-        '-g', '50',                          // ~2s la 25fps
-        '-keyint_min', '50',
+        '-crf', '21',                        // calitate constantă (mai mic = mai bun)
+        '-g', '250',                         // GOP max mare → doar IDR-urile forțate
+        '-keyint_min', '25',
         '-sc_threshold', '0',                // fără keyframe-uri la scene-cut
-        '-bf', '0',                          // fără B-frame-uri (mobil HW-friendly)
-        '-force_key_frames', 'expr:gte(t,n_forced*2)', // IDR fix la 2s
-        '-maxrate', '3M',
-        '-bufsize', '6M',
+        '-force_key_frames', 'expr:gte(t,n_forced*2)', // IDR fix la 2s (aliniat cu hls_time)
+        '-maxrate', '5M',                    // plafon de bandă (uplink nemetrat)
+        '-bufsize', '10M',
       ]
     : ['-c:v', 'copy']
 
